@@ -7,7 +7,7 @@ sentence-transformers
 faiss-cpu
 transformers
 torch
-PyMuPDF==1.23.7
+pymupdf==1.23.7
 python-docx
 numpy
 Pillow
