@@ -23,11 +23,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run email script
-        env:
-          SMTP_SENDER: ${{ secrets.SMTP_SENDER }}
-          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-          SMTP_RECEIVER: ${{ secrets.SMTP_RECEIVER }}
-        run: |
-          python -c "from Rag_Folder_Browser import send_log_email; send_log_email()"
+    - name: Run email script
+      env:
+        SMTP_SENDER: ${{ secrets.SMTP_SENDER }}
+        SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+        SMTP_RECEIVER: ${{ secrets.SMTP_RECEIVER }}
+    run: |
+        python -c "import sys; sys.path.insert(0, './app'); from Rag_Folder_Browser import send_log_email; send_log_email()"
+
 
