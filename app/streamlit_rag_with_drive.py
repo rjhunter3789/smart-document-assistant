@@ -15,6 +15,8 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import pickle
 
+from datetime import datetime
+
 # Setup
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 DOCS_DIR = "docs"
@@ -123,6 +125,17 @@ doc_files = [f for f in file_list if any(f['name'].lower().endswith(ext) for ext
 file_names = [f['name'] for f in doc_files]
 selected_file = st.selectbox("Step 2: Choose a document", ["(none)"] + file_names)
 
+        if st.button("Download Source File"):
+            with open(downloaded_path, "rb") as f:
+                st.download_button("Download Original File", f, file_name=file_obj['name'])
+
+    # Log usage for audit trail
+def log_usage():
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_entry = f"{now} - User accessed: {selected_file}\n"
+    with open("usage_log.txt", "a") as f:
+        f.write(log_entry)
+
 if selected_file != "(none)":
     file_obj = next(f for f in doc_files if f['name'] == selected_file)
     downloaded_path = download_file(file_obj['id'], file_obj['name'])
@@ -137,5 +150,12 @@ if selected_file != "(none)":
         if st.button("Download Source File"):
             with open(downloaded_path, "rb") as f:
                 st.download_button("Download Original File", f, file_name=file_obj['name'])
+
+        # ✅ Log after successful interaction
+        log_usage()
+
+    else:
+        st.warning("⚠️ Could not extract text from the selected file.")
+
     else:
         st.warning("⚠️ Could not extract text from the selected file.")
