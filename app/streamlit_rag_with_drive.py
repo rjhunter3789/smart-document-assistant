@@ -84,7 +84,7 @@ embedder = SentenceTransformer("all-MiniLM-L6-v2")
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
 tokenizer = AutoTokenizer.from_pretrained("t5-small")
-model = AutoModelForSeq2SeqLM.from_pretrained("t5-small").to("cpu")
+model = AutoModelForSeq2SeqLM.from_pretrained("t5-small")
 summarizer = pipeline("summarization", model=model, tokenizer=tokenizer, device=-1)
 
 def generate_summary(text):
