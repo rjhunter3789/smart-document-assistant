@@ -24,3 +24,5 @@ def send_log_email():
         print("✅ Email sent successfully.")
     except Exception as e:
         print(f"❌ Failed to send email: {e}")
+if __name__ == "__main__":
+    send_log_email()
