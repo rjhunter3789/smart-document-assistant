@@ -29,6 +29,7 @@ jobs:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           SMTP_RECEIVER: ${{ secrets.SMTP_RECEIVER }}
         run: |
-          python -c "import sys; sys.path.insert(0, './app'); from Rag_Folder_Browser import send_log_email; send_log_email()"
+          python app/Rag_Folder_Browser.py
+
 
 
