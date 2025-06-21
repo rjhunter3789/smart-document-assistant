@@ -80,7 +80,7 @@ def extract_text(file_path):
             text = f.read()
     return text.strip()
 
-embedder = SentenceTransformer("all-MiniLM-L6-v2", device='cpu')
+embedder = SentenceTransformer("all-MiniLM-L6-v2")
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
 tokenizer = AutoTokenizer.from_pretrained("t5-small")
