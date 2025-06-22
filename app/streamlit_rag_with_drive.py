@@ -524,122 +524,137 @@ demo_docs = [
     }
 ]
 
-# Google Drive setup
+# Google Drive setup with demo mode check
 root_id = "1galnuNa9g7xoULx3Ka8vs79-NuJUA4n6"
 
-def get_all_folders_recursive(service, parent_id, parent_path=""):
-    folders = []
+if not demo_mode:
+    def get_all_folders_recursive(service, parent_id, parent_path=""):
+        folders = []
+        try:
+            query = f"'{parent_id}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+            results = service.files().list(q=query, fields="files(id, name)", pageSize=1000).execute()
+            items = results.get("files", [])
+
+            for item in items:
+                full_path = f"{parent_path}/{item['name']}".strip("/")
+                folders.append({
+                    "id": item["id"],
+                    "name": item["name"],
+                    "full_path": full_path
+                })
+                folders.extend(get_all_folders_recursive(service, item["id"], full_path))
+        except Exception as e:
+            st.error(f"Error accessing folder {parent_path}: {str(e)}")
+        
+        return folders
+
     try:
-        query = f"'{parent_id}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-        results = service.files().list(q=query, fields="files(id, name)", pageSize=1000).execute()
-        items = results.get("files", [])
-
-        for item in items:
-            full_path = f"{parent_path}/{item['name']}".strip("/")
-            folders.append({
-                "id": item["id"],
-                "name": item["name"],
-                "full_path": full_path
-            })
-            folders.extend(get_all_folders_recursive(service, item["id"], full_path))
+        all_folders = get_all_folders_recursive(service, root_id)
     except Exception as e:
-        st.error(f"Error accessing folder {parent_path}: {str(e)}")
-    
-    return folders
+        st.error(f"Failed to load folders: {str(e)}")
+        demo_mode = True
+        all_folders = []
 
-try:
-    all_folders = get_all_folders_recursive(service, root_id)
-except Exception as e:
-    st.error(f"Failed to load folders: {str(e)}")
-    st.stop()
+    if all_folders:
+        # Normalize paths
+        for f in all_folders:
+            f['full_path'] = f['full_path'].strip()
+            f['name'] = f['name'].strip()
+            f['full_path'] = f['full_path'].replace(' /', '/').replace('/ ', '/')
 
-# Normalize paths
-for f in all_folders:
-    f['full_path'] = f['full_path'].strip()
-    f['name'] = f['name'].strip()
-    f['full_path'] = f['full_path'].replace(' /', '/').replace('/ ', '/')
+        # Filter folders
+        excluded_paths = ["WMA RAG/WMA Team/RAG_App"]
+        filtered_folders = [f for f in all_folders if not any(f['full_path'].startswith(p) for p in excluded_paths)]
 
-# Filter folders
-excluded_paths = ["WMA RAG/WMA Team/RAG_App"]
-filtered_folders = [f for f in all_folders if not any(f['full_path'].startswith(p) for p in excluded_paths)]
+        # Team selection
+        team_names = ["Aaron", "Brody", "Dona", "Eric", "Grace", "Jeff", "Jessica", "Jill", "John", "Jon", "Kirk", "Owen", "Paul", "WMA Team"]
+        user_folders = [f for f in filtered_folders if f['name'] in team_names and '/' not in f['full_path']]
 
-# Team selection
-team_names = ["Aaron", "Brody", "Dona", "Eric", "Grace", "Jeff", "Jessica", "Jill", "John", "Jon", "Kirk", "Owen", "Paul", "WMA Team"]
-user_folders = [f for f in filtered_folders if f['name'] in team_names and '/' not in f['full_path']]
+        if not user_folders:
+            user_folders = [f for f in filtered_folders if f['name'] in team_names]
 
-if not user_folders:
-    user_folders = [f for f in filtered_folders if f['name'] in team_names]
-
-user_names = sorted([f['name'] for f in user_folders])
+        user_names = sorted([f['name'] for f in user_folders])
+    else:
+        demo_mode = True
+        user_names = []
+else:
+    all_folders = []
+    filtered_folders = []
+    user_names = []
 
 if not user_names:
     st.error("🚫 No user folders found. Please check your folder structure.")
     st.stop()
 
-# Mobile navigation with collapsible sections
-with st.container():
-    st.markdown('<div class="nav-section">', unsafe_allow_html=True)
-    st.markdown('<div class="nav-title">📁 Step 1: Select Your Folder</div>', unsafe_allow_html=True)
-    selected_user = st.selectbox("Choose folder:", user_names, label_visibility="collapsed")
-    st.markdown('</div>', unsafe_allow_html=True)
+# Mobile navigation with demo mode support
+if not demo_mode and user_names:
+    with st.container():
+        st.markdown('<div class="nav-section">', unsafe_allow_html=True)
+        st.markdown('<div class="nav-title">📁 Step 1: Select Your Folder</div>', unsafe_allow_html=True)
+        selected_user = st.selectbox("Choose folder:", user_names, label_visibility="collapsed")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-# Dynamic folder navigation
-selected_user_folder = next((f for f in user_folders if f['name'] == selected_user), None)
-user_folder_path = selected_user_folder['full_path'] if selected_user_folder else selected_user
+    # Dynamic folder navigation for real Google Drive
+    selected_user_folder = next((f for f in user_folders if f['name'] == selected_user), None)
+    user_folder_path = selected_user_folder['full_path'] if selected_user_folder else selected_user
 
-search_path = user_folder_path
-if not search_path.endswith('/'):
-    search_path += '/'
+    search_path = user_folder_path
+    if not search_path.endswith('/'):
+        search_path += '/'
 
-subfolders = [f for f in filtered_folders if f['full_path'].startswith(search_path) and f['full_path'] != user_folder_path]
-subfolder_paths = sorted([f["full_path"] for f in subfolders])
+    subfolders = [f for f in filtered_folders if f['full_path'].startswith(search_path) and f['full_path'] != user_folder_path]
+    subfolder_paths = sorted([f["full_path"] for f in subfolders])
 
-selected_folder_path = None
-selected_folder_id = None
+    selected_folder_path = None
+    selected_folder_id = None
 
-if subfolder_paths:
-    level_1_folders = [f for f in subfolders if f['full_path'].count('/') == user_folder_path.count('/') + 1]
-    level_1_paths = sorted([f["full_path"] for f in level_1_folders])
-    
-    if level_1_paths:
-        with st.container():
-            st.markdown('<div class="nav-section">', unsafe_allow_html=True)
-            st.markdown('<div class="nav-title">📂 Step 2: Select Subfolder</div>', unsafe_allow_html=True)
-            selected_level_1 = st.selectbox("Choose subfolder:", level_1_paths, label_visibility="collapsed")
-            st.markdown('</div>', unsafe_allow_html=True)
+    if subfolder_paths:
+        level_1_folders = [f for f in subfolders if f['full_path'].count('/') == user_folder_path.count('/') + 1]
+        level_1_paths = sorted([f["full_path"] for f in level_1_folders])
         
-        level_2_folders = [f for f in subfolders if f['full_path'].startswith(f"{selected_level_1}/") and f['full_path'] != selected_level_1]
-        level_2_paths = sorted([f["full_path"] for f in level_2_folders])
-        
-        if level_2_paths:
-            level_2_display = [f["full_path"] for f in level_2_folders if f['full_path'].count('/') == selected_level_1.count('/') + 1]
-            if level_2_display:
-                with st.container():
-                    st.markdown('<div class="nav-section">', unsafe_allow_html=True)
-                    st.markdown('<div class="nav-title">📋 Step 3: Select Final Folder</div>', unsafe_allow_html=True)
-                    selected_level_2 = st.selectbox("Choose final folder:", sorted(level_2_display), label_visibility="collapsed")
-                    st.markdown('</div>', unsafe_allow_html=True)
-                
-                level_3_folders = [f for f in subfolders if f['full_path'].startswith(f"{selected_level_2}/") and f['full_path'] != selected_level_2]
-                level_3_paths = sorted([f["full_path"] for f in level_3_folders])
-                
-                if level_3_paths:
-                    level_3_display = [f["full_path"] for f in level_3_folders if f['full_path'].count('/') == selected_level_2.count('/') + 1]
-                    if level_3_display:
-                        selected_folder_path = st.selectbox("Choose deeper folder:", sorted(level_3_display))
+        if level_1_paths:
+            with st.container():
+                st.markdown('<div class="nav-section">', unsafe_allow_html=True)
+                st.markdown('<div class="nav-title">📂 Step 2: Select Subfolder</div>', unsafe_allow_html=True)
+                selected_level_1 = st.selectbox("Choose subfolder:", level_1_paths, label_visibility="collapsed")
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            level_2_folders = [f for f in subfolders if f['full_path'].startswith(f"{selected_level_1}/") and f['full_path'] != selected_level_1]
+            level_2_paths = sorted([f["full_path"] for f in level_2_folders])
+            
+            if level_2_paths:
+                level_2_display = [f["full_path"] for f in level_2_folders if f['full_path'].count('/') == selected_level_1.count('/') + 1]
+                if level_2_display:
+                    with st.container():
+                        st.markdown('<div class="nav-section">', unsafe_allow_html=True)
+                        st.markdown('<div class="nav-title">📋 Step 3: Select Final Folder</div>', unsafe_allow_html=True)
+                        selected_level_2 = st.selectbox("Choose final folder:", sorted(level_2_display), label_visibility="collapsed")
+                        st.markdown('</div>', unsafe_allow_html=True)
+                    
+                    level_3_folders = [f for f in subfolders if f['full_path'].startswith(f"{selected_level_2}/") and f['full_path'] != selected_level_2]
+                    level_3_paths = sorted([f["full_path"] for f in level_3_folders])
+                    
+                    if level_3_paths:
+                        level_3_display = [f["full_path"] for f in level_3_folders if f['full_path'].count('/') == selected_level_2.count('/') + 1]
+                        if level_3_display:
+                            selected_folder_path = st.selectbox("Choose deeper folder:", sorted(level_3_display))
+                        else:
+                            selected_folder_path = selected_level_2
                     else:
                         selected_folder_path = selected_level_2
                 else:
-                    selected_folder_path = selected_level_2
+                    selected_folder_path = selected_level_1
             else:
                 selected_folder_path = selected_level_1
-        else:
-            selected_folder_path = selected_level_1
-    
-    folder_map = {f["full_path"]: f for f in all_folders}
-    selected_folder_id = folder_map[selected_folder_path]['id'] if selected_folder_path and selected_folder_path in folder_map else None
+        
+        folder_map = {f["full_path"]: f for f in all_folders}
+        selected_folder_id = folder_map[selected_folder_path]['id'] if selected_folder_path and selected_folder_path in folder_map else None
+    else:
+        st.markdown('<div class="status-warning">🔍 No subfolders found for this selection</div>', unsafe_allow_html=True)
 else:
-    st.markdown('<div class="status-warning">🔍 No subfolders found for this selection</div>', unsafe_allow_html=True)
+    # Demo mode - skip all folder navigation
+    st.markdown('<div class="status-info">📁 <strong>Demo Mode:</strong> Showing sample documents</div>', unsafe_allow_html=True)
+    selected_folder_id = None
 
 # Mobile search interface
 st.markdown("---")
