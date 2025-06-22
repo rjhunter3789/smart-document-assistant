@@ -479,16 +479,50 @@ if 'current_step' not in st.session_state:
 try:
     service = authenticate_gdrive()
     if service is None:
-        st.warning("🔐 Google Drive not connected. Voice features and search will work, but folder navigation is limited.")
-        # Set up demo mode or limited functionality
+        st.warning("🔐 Google Drive not connected. Voice features and search will work, but showing demo documents.")
+        # Set up demo mode with sample documents
         demo_mode = True
     else:
         demo_mode = False
 except Exception as e:
     st.error(f"🚫 Authentication setup failed: {str(e)}")
-    st.info("Running in demo mode with limited functionality.")
+    st.info("Running in demo mode with sample documents.")
     service = None
     demo_mode = True
+
+# Demo documents for showcase
+demo_docs = [
+    {
+        'id': 'demo_1',
+        'name': 'AI Strategy Presentation.pdf',
+        'mimeType': 'application/pdf'
+    },
+    {
+        'id': 'demo_2', 
+        'name': 'Q4 Sales Report.docx',
+        'mimeType': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    },
+    {
+        'id': 'demo_3',
+        'name': 'Customer Analysis Dashboard.xlsx',
+        'mimeType': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    },
+    {
+        'id': 'demo_4',
+        'name': 'Product Roadmap 2025.pdf',
+        'mimeType': 'application/pdf'
+    },
+    {
+        'id': 'demo_5',
+        'name': 'Team Performance Metrics.docx',
+        'mimeType': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    },
+    {
+        'id': 'demo_6',
+        'name': 'Marketing Campaign Results.pdf',
+        'mimeType': 'application/pdf'
+    }
+]
 
 # Google Drive setup
 root_id = "1galnuNa9g7xoULx3Ka8vs79-NuJUA4n6"
@@ -618,9 +652,13 @@ with col1:
 with col2:
     semantic_query = st.text_input("🧠 AI search (coming soon)", placeholder="AI search...", disabled=True, label_visibility="collapsed")
 
-# File listing and mobile-optimized display with voice search
+# File listing with demo mode support
 docs = []
-if selected_folder_id:
+if demo_mode:
+    # Use demo documents
+    docs = demo_docs
+    st.info("📁 **Demo Mode:** Showing sample documents to demonstrate the interface")
+elif selected_folder_id:
     try:
         files = list_files(service, selected_folder_id)
         docs = [f for f in files if any(f['name'].lower().endswith(ext) for ext in ['.pdf', '.docx', '.txt', '.xlsx'])]
@@ -650,28 +688,50 @@ if docs:
         
         with col1:
             if st.button("📖 Summary", key=f"sum_{doc['id']}", use_container_width=True):
-                with st.spinner("🤖 AI analyzing..."):
-                    try:
-                        file_path = download_file(service, doc['id'], doc['name'])
-                        text_content = extract_text(file_path)
-                        
-                        if text_content:
-                            summary = generate_summary(text_content)
-                            if len(summary) > 400:
-                                summary = summary[:400] + "..."
+                if demo_mode:
+                    # Generate demo summaries
+                    demo_summaries = {
+                        'demo_1': "This AI Strategy presentation outlines our company's approach to implementing artificial intelligence across key business functions. It covers current market trends, competitive analysis, and a 3-year roadmap for AI adoption including machine learning, automation, and data analytics initiatives.",
+                        'demo_2': "Q4 sales exceeded targets by 15% with strong performance in enterprise accounts. Key highlights include 23% growth in recurring revenue, successful launch of premium tier services, and expansion into 3 new geographic markets. Customer retention improved to 94%.",
+                        'demo_3': "Customer analysis reveals strong engagement patterns with mobile app usage up 45%. Demographic trends show growth in 25-34 age segment. Satisfaction scores improved across all touchpoints with notable increases in support response times and product quality ratings.",
+                        'demo_4': "2025 product roadmap focuses on user experience enhancements, AI-powered features, and platform scalability. Major releases planned for Q2 and Q4 with emphasis on mobile optimization, advanced analytics dashboard, and enterprise integration capabilities.",
+                        'demo_5': "Team performance metrics show consistent improvement across all departments. Productivity increased 12% with new workflow optimizations. Employee satisfaction scores reached all-time high of 4.6/5. Training completion rates improved significantly with new learning management system.",
+                        'demo_6': "Marketing campaign achieved 3.2x ROI with particularly strong performance in digital channels. Email campaigns saw 28% open rates, social media engagement up 67%, and conversion rates improved by 19%. Brand awareness increased measurably in target demographics."
+                    }
+                    
+                    summary = demo_summaries.get(doc['id'], "This is a demo summary showcasing the AI-powered document analysis capability. In the full version, this would contain an actual AI-generated summary of the document content using advanced natural language processing.")
+                    
+                    st.markdown('<div class="status-success">', unsafe_allow_html=True)
+                    st.markdown("**📋 AI Summary:**")
+                    st.write(summary)
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    
+                    # Store summary for text-to-speech
+                    st.session_state[f"summary_{doc['id']}"] = summary
+                else:
+                    # Real document processing
+                    with st.spinner("🤖 AI analyzing..."):
+                        try:
+                            file_path = download_file(service, doc['id'], doc['name'])
+                            text_content = extract_text(file_path)
                             
-                            st.markdown('<div class="status-success">', unsafe_allow_html=True)
-                            st.markdown("**📋 AI Summary:**")
-                            st.write(summary)
-                            st.markdown('</div>', unsafe_allow_html=True)
-                            
-                            # Store summary for text-to-speech
-                            st.session_state[f"summary_{doc['id']}"] = summary
-                        else:
-                            st.markdown('<div class="status-warning">⚠️ Could not extract text from document</div>', unsafe_allow_html=True)
-                            
-                    except Exception as e:
-                        st.error(f"❌ Analysis failed: {str(e)}")
+                            if text_content:
+                                summary = generate_summary(text_content)
+                                if len(summary) > 400:
+                                    summary = summary[:400] + "..."
+                                
+                                st.markdown('<div class="status-success">', unsafe_allow_html=True)
+                                st.markdown("**📋 AI Summary:**")
+                                st.write(summary)
+                                st.markdown('</div>', unsafe_allow_html=True)
+                                
+                                # Store summary for text-to-speech
+                                st.session_state[f"summary_{doc['id']}"] = summary
+                            else:
+                                st.markdown('<div class="status-warning">⚠️ Could not extract text from document</div>', unsafe_allow_html=True)
+                                
+                        except Exception as e:
+                            st.error(f"❌ Analysis failed: {str(e)}")
         
         with col2:
             if st.button("🔊 Read Info", key=f"speak_{doc['id']}", use_container_width=True):
@@ -707,30 +767,49 @@ if docs:
         
         with col3:
             if st.button("⬇️ Download", key=f"dl_{doc['id']}", use_container_width=True):
-                try:
-                    file_path = download_file(service, doc['id'], doc['name'])
-                    
-                    with open(file_path, 'rb') as f:
-                        st.download_button(
-                            label="💾 Get File",
-                            data=f.read(),
-                            file_name=doc['name'],
-                            mime="application/octet-stream",
-                            key=f"dlbtn_{doc['id']}",
-                            use_container_width=True
-                        )
-                    st.markdown('<div class="status-success">✅ Ready to download!</div>', unsafe_allow_html=True)
-                except Exception as e:
-                    st.error(f"❌ Download failed: {str(e)}")
+                if demo_mode:
+                    st.info("📥 **Demo Mode:** In the full version, this would download the actual document from Google Drive. Click to see download functionality demonstration.")
+                    st.markdown(f"""
+                    <div class="status-success">
+                        ✅ <strong>Download Ready:</strong> {doc['name']}<br>
+                        <small>File would be downloaded from Google Drive in production mode</small>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    # Real download functionality
+                    try:
+                        file_path = download_file(service, doc['id'], doc['name'])
+                        
+                        with open(file_path, 'rb') as f:
+                            st.download_button(
+                                label="💾 Get File",
+                                data=f.read(),
+                                file_name=doc['name'],
+                                mime="application/octet-stream",
+                                key=f"dlbtn_{doc['id']}",
+                                use_container_width=True
+                            )
+                        st.markdown('<div class="status-success">✅ Ready to download!</div>', unsafe_allow_html=True)
+                    except Exception as e:
+                        st.error(f"❌ Download failed: {str(e)}")
         
         with col4:
             if st.button("🔗 Share", key=f"share_{doc['id']}", use_container_width=True):
-                share_url = f"https://drive.google.com/file/d/{doc['id']}/view"
-                st.markdown('<div class="status-success">', unsafe_allow_html=True)
-                st.markdown("**🔗 Share Link:**")
-                st.code(share_url, language=None)
-                st.markdown("💡 Copy this link to share!")
-                st.markdown('</div>', unsafe_allow_html=True)
+                if demo_mode:
+                    demo_url = f"https://demo-documents.example.com/file/{doc['id']}"
+                    st.markdown('<div class="status-success">', unsafe_allow_html=True)
+                    st.markdown("**🔗 Demo Share Link:**")
+                    st.code(demo_url, language=None)
+                    st.markdown("💡 In production, this would be a real Google Drive share link!")
+                    st.markdown('</div>', unsafe_allow_html=True)
+                else:
+                    # Real share functionality
+                    share_url = f"https://drive.google.com/file/d/{doc['id']}/view"
+                    st.markdown('<div class="status-success">', unsafe_allow_html=True)
+                    st.markdown("**🔗 Share Link:**")
+                    st.code(share_url, language=None)
+                    st.markdown("💡 Copy this link to share!")
+                    st.markdown('</div>', unsafe_allow_html=True)
         
         st.markdown("---")
 else:
