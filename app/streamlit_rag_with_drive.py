@@ -3,9 +3,10 @@ import io
 import fitz  # PyMuPDF
 from docx import Document as DocxDoc
 import streamlit as st
-from sentence_transformers import SentenceTransformer
-from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
-import torch
+# Removed heavy AI imports that might be causing startup hang
+# from sentence_transformers import SentenceTransformer
+# from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
+# import torch
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 from google_auth_oauthlib.flow import InstalledAppFlow
