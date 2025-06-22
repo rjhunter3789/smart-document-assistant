@@ -682,22 +682,52 @@ with col1:
 with col2:
     semantic_query = st.text_input("🧠 AI search (coming soon)", placeholder="AI search...", disabled=True, label_visibility="collapsed")
 
-# File listing with demo mode support
+# SIMPLIFIED FILE LISTING - FORCE DEMO DOCS TO SHOW
 docs = []
-if demo_mode:
-    # Use demo documents
-    docs = demo_docs
-    st.info("📁 **Demo Mode:** Showing sample documents to demonstrate the interface")
-elif selected_folder_id:
-    try:
-        files = list_files(service, selected_folder_id)
-        docs = [f for f in files if any(f['name'].lower().endswith(ext) for ext in ['.pdf', '.docx', '.txt', '.xlsx'])]
-    except Exception as e:
-        st.error(f"Error listing files: {str(e)}")
 
-# Apply search filter (voice or text)
+# ALWAYS show demo documents in lightweight mode
+demo_docs = [
+    {
+        'id': 'demo_1',
+        'name': 'AI Strategy Presentation.pdf',
+        'mimeType': 'application/pdf'
+    },
+    {
+        'id': 'demo_2', 
+        'name': 'Q4 Sales Report.docx',
+        'mimeType': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    },
+    {
+        'id': 'demo_3',
+        'name': 'Customer Analysis Dashboard.xlsx',
+        'mimeType': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    },
+    {
+        'id': 'demo_4',
+        'name': 'Product Roadmap 2025.pdf',
+        'mimeType': 'application/pdf'
+    },
+    {
+        'id': 'demo_5',
+        'name': 'Team Performance Metrics.docx',
+        'mimeType': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    },
+    {
+        'id': 'demo_6',
+        'name': 'Marketing Campaign Results.pdf',
+        'mimeType': 'application/pdf'
+    }
+]
+
+# Set docs to demo_docs directly - no complex logic
+docs = demo_docs
+st.success(f"📄 **Demo Documents Loaded:** {len(docs)} files available")
+
+# Apply search filter if there's a query
 if active_query:
     docs = [doc for doc in docs if active_query.lower() in doc["name"].lower()]
+    if active_query:
+        st.info(f"🔍 **Search Results:** Found {len(docs)} documents matching '{active_query}'")
 
 # Mobile-friendly results display
 st.markdown('<div class="results-header">📊 Results</div>', unsafe_allow_html=True)
