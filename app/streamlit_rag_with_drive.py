@@ -384,82 +384,93 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Voice Interface Section
+# Voice Interface Section with Streamlit Native Components
 st.markdown("""
 <div class="voice-container">
     <h3 style="margin-top: 0;">🎙️ Voice Commands</h3>
-    <p>Tap to speak your search query or commands</p>
+    <p>Use the voice input below to search your documents</p>
 </div>
 """, unsafe_allow_html=True)
 
-# Voice Interface Component (Browser-based Speech Recognition)
+# Streamlit Native Voice Interface
 voice_component = st.container()
 with voice_component:
-    col1, col2, col3 = st.columns([1, 2, 1])
+    # Voice input using Streamlit's built-in microphone support
+    st.markdown("### 🎤 Voice Search")
+    
+    # Create columns for better mobile layout
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        # Use Streamlit's experimental audio input
+        voice_input = st.text_input(
+            "🎤 Voice Search", 
+            placeholder="Tap here, then use your keyboard's voice button...",
+            help="On mobile: Tap here and use your keyboard's microphone button 🎤",
+            label_visibility="collapsed"
+        )
     
     with col2:
-        # Voice activation button
-        if st.button("🎤 Tap to Speak", key="voice_btn", use_container_width=True):
-            st.markdown("""
-            <div class="status-info">
-                🎤 <strong>Voice Recognition Active!</strong><br>
-                <small>Start speaking your search query...</small>
-            </div>
-            """, unsafe_allow_html=True)
+        # Voice instructions button
+        if st.button("📱 How to Voice Search", use_container_width=True):
+            st.info("""
+            **📱 Mobile Voice Search:**
             
-            # Browser-based speech recognition
-            st.markdown("""
-            <script>
-            // Check if browser supports speech recognition
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            1. **Tap the search box** above
+            2. **Look for the microphone icon** on your mobile keyboard 🎤
+            3. **Tap the keyboard mic** and speak
+            4. **Your voice will be converted to text** automatically!
             
-            if (SpeechRecognition) {
-                const recognition = new SpeechRecognition();
-                recognition.continuous = false;
-                recognition.interimResults = true;
-                recognition.lang = 'en-US';
-                
-                recognition.onstart = function() {
-                    console.log('Voice recognition started');
-                };
-                
-                recognition.onresult = function(event) {
-                    let transcript = '';
-                    for (let i = event.resultIndex; i < event.results.length; i++) {
-                        transcript += event.results[i][0].transcript;
-                    }
-                    
-                    // Update the search input with voice transcript
-                    const searchInput = document.querySelector('input[placeholder*="voice"]');
-                    if (searchInput) {
-                        searchInput.value = transcript;
-                        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    }
-                };
-                
-                recognition.onerror = function(event) {
-                    console.error('Speech recognition error:', event.error);
-                };
-                
-                recognition.start();
-            } else {
-                alert('Sorry, your browser does not support voice recognition. Please use Chrome or Edge.');
-            }
-            </script>
-            """, unsafe_allow_html=True)
+            **💡 Alternative:** Just type your search normally!
+            """)
+    
+    # Voice status indicator
+    if voice_input:
+        st.markdown(f"""
+        <div class="status-success">
+            🎤 <strong>Voice Input Detected:</strong> "{voice_input}"
+        </div>
+        """, unsafe_allow_html=True)
 
-# Voice-enabled search
+# Text-to-Speech Section
+st.markdown("---")
+st.markdown("### 🔊 Text-to-Speech")
+st.info("""
+**💡 Pro Tip:** After generating document summaries, you can use your device's built-in text-to-speech:
+
+📱 **On Mobile:**
+- **iPhone:** Settings → Accessibility → Spoken Content → "Speak Selection"
+- **Android:** Settings → Accessibility → Text-to-speech
+
+🖥️ **On Desktop:**
+- **Windows:** Narrator (Windows key + Ctrl + Enter)
+- **Mac:** VoiceOver (Cmd + F5)
+- **Chrome:** Right-click text → "Read aloud" (if available)
+""")
+
+# Voice-enabled search (now using mobile keyboard voice input)
 st.markdown("### 🔍 Search Documents")
 col1, col2 = st.columns([1, 1])
 
 with col1:
-    filename_query = st.text_input("📄 Search by filename", placeholder="Type or use voice...", label_visibility="collapsed")
+    filename_query = st.text_input(
+        "📄 Search by filename", 
+        placeholder="Type filename or use voice input above...", 
+        label_visibility="collapsed"
+    )
 
 with col2:
-    voice_search = st.text_input("🎤 Voice search result", placeholder="Voice results appear here...", label_visibility="collapsed", key="voice_search")
+    # Combine voice input with filename search
+    st.text_input(
+        "🔗 Combined Search", 
+        value=voice_input if voice_input else filename_query,
+        placeholder="Auto-filled from voice or text search...",
+        disabled=True,
+        label_visibility="collapsed"
+    )
 
-# Combine voice and text search
-active_query = voice_search if voice_search else filename_query
+# Use the combined search query
+active_query = voice_input if voice_input else filename_query
 
 # Initialize session state for mobile navigation
 if 'current_step' not in st.session_state:
@@ -467,9 +478,17 @@ if 'current_step' not in st.session_state:
 
 try:
     service = authenticate_gdrive()
+    if service is None:
+        st.warning("🔐 Google Drive not connected. Voice features and search will work, but folder navigation is limited.")
+        # Set up demo mode or limited functionality
+        demo_mode = True
+    else:
+        demo_mode = False
 except Exception as e:
-    st.error(f"🚫 Authentication failed: {str(e)}")
-    st.stop()
+    st.error(f"🚫 Authentication setup failed: {str(e)}")
+    st.info("Running in demo mode with limited functionality.")
+    service = None
+    demo_mode = True
 
 # Google Drive setup
 root_id = "1galnuNa9g7xoULx3Ka8vs79-NuJUA4n6"
@@ -626,7 +645,7 @@ if docs:
         </div>
         """, unsafe_allow_html=True)
         
-        # Action buttons in mobile-friendly layout with voice
+        # Action buttons in mobile-friendly layout with enhanced text-to-speech
         col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
         
         with col1:
@@ -655,45 +674,34 @@ if docs:
                         st.error(f"❌ Analysis failed: {str(e)}")
         
         with col2:
-            if st.button("🔊 Speak", key=f"speak_{doc['id']}", use_container_width=True):
-                # Text-to-speech for summary
+            if st.button("🔊 Read Info", key=f"speak_{doc['id']}", use_container_width=True):
+                # Enhanced text-to-speech instructions
                 summary_key = f"summary_{doc['id']}"
                 if summary_key in st.session_state:
                     summary_text = st.session_state[summary_key]
                     
-                    # Browser-based text-to-speech
                     st.markdown(f"""
                     <div class="audio-player">
-                        <p><strong>🔊 Speaking Summary:</strong></p>
+                        <p><strong>🔊 Ready to Read Aloud:</strong></p>
                         <p><em>"{summary_text[:100]}..."</em></p>
+                        
+                        <p><strong>📱 To hear this summary:</strong></p>
+                        <ul>
+                            <li><strong>iPhone:</strong> Select text above → "Speak"</li>
+                            <li><strong>Android:</strong> Select text → "Listen" or "Read aloud"</li>
+                            <li><strong>Desktop:</strong> Use system text-to-speech</li>
+                        </ul>
                     </div>
-                    
-                    <script>
-                    const textToSpeak = `{summary_text}`;
-                    
-                    if ('speechSynthesis' in window) {{
-                        const utterance = new SpeechSynthesisUtterance(textToSpeak);
-                        utterance.rate = 0.8;
-                        utterance.pitch = 1;
-                        utterance.volume = 1;
-                        
-                        // Use a pleasant voice if available
-                        const voices = speechSynthesis.getVoices();
-                        const preferredVoice = voices.find(voice => 
-                            voice.name.includes('Google') || 
-                            voice.name.includes('Microsoft') ||
-                            voice.lang.startsWith('en')
-                        );
-                        if (preferredVoice) {{
-                            utterance.voice = preferredVoice;
-                        }}
-                        
-                        speechSynthesis.speak(utterance);
-                    }} else {{
-                        alert('Text-to-speech not supported in your browser');
-                    }}
-                    </script>
                     """, unsafe_allow_html=True)
+                    
+                    # Create a selectable text block
+                    st.text_area(
+                        "📄 Summary Text (select and use device text-to-speech):",
+                        value=summary_text,
+                        height=100,
+                        key=f"tts_text_{doc['id']}"
+                    )
+                    
                 else:
                     st.markdown('<div class="status-warning">⚠️ Generate a summary first to use text-to-speech</div>', unsafe_allow_html=True)
         
