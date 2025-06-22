@@ -301,19 +301,33 @@ st.markdown("""
 
 # Authentication functions (unchanged)
 def authenticate_gdrive():
-    creds = None
-    if os.path.exists("token.pkl"):
-        with open("token.pkl", "rb") as token:
-            creds = pickle.load(token)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
+    """Authenticate with Google Drive using Streamlit secrets"""
+    try:
+        # Import here to avoid import errors if not available
+        from google.oauth2.credentials import Credentials
+        
+        # Create credentials from Streamlit secrets
+        creds_info = {
+            "client_id": st.secrets["google"]["client_id"],
+            "client_secret": st.secrets["google"]["client_secret"],
+            "refresh_token": st.secrets["google"]["refresh_token"],
+            "token": st.secrets["google"]["token"],
+            "token_uri": st.secrets["google"]["token_uri"],
+        }
+        
+        # Create credentials object
+        creds = Credentials.from_authorized_user_info(creds_info, SCOPES)
+        
+        # Refresh if needed
+        if creds.expired and creds.refresh_token:
             creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file("app/credentials.json", SCOPES)
-            creds = flow.run_local_server(port=8502)
-        with open("token.pkl", "wb") as token:
-            pickle.dump(creds, token)
-    return build('drive', 'v3', credentials=creds)
+        
+        # Build and return the service
+        return build('drive', 'v3', credentials=creds)
+        
+    except Exception as e:
+        st.error(f"🚫 Authentication failed: {str(e)}")
+        return None
 
 def list_all_folders(service, parent_id, depth=0):
     results = service.files().list(
