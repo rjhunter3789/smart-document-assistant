@@ -4,10 +4,11 @@ google-auth
 google-auth-oauthlib
 google-auth-httplib2
 sentence-transformers
-faiss-cpu
 transformers
 torch
-pymupdf==1.23.7
+PyMuPDF
 python-docx
 numpy
 Pillow
+pandas
+requests
