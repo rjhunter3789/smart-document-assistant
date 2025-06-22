@@ -363,18 +363,33 @@ def extract_text(file_path):
         return ""
     return ""
 
-# AI setup (unchanged)
-embedder = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-tokenizer = AutoTokenizer.from_pretrained("t5-small")
-model = AutoModelForSeq2SeqLM.from_pretrained("t5-small", torch_dtype=torch.float32)
-summarizer = pipeline("summarization", model=model, tokenizer=tokenizer, device=-1)
+# Lightweight AI setup (commenting out heavy models for cloud deployment)
+try:
+    # embedder = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+    # tokenizer = AutoTokenizer.from_pretrained("t5-small")
+    # model = AutoModelForSeq2SeqLM.from_pretrained("t5-small", torch_dtype=torch.float32)
+    # summarizer = pipeline("summarization", model=model, tokenizer=tokenizer, device=-1)
+    
+    # Use lightweight summarization for demo
+    ai_models_loaded = False
+    st.info("🔄 Running in lightweight mode - using simplified AI summaries")
+except Exception as e:
+    ai_models_loaded = False
+    st.warning(f"⚠️ AI models not loaded: {str(e)}")
 
 def generate_summary(text):
+    """Lightweight summary generation for demo mode"""
     if not text.strip():
         return "No readable content found."
-    chunks = [text[i:i+1000] for i in range(0, len(text), 1000)]
-    summaries = summarizer(chunks[:2], max_length=150, min_length=50, do_sample=False)
-    return "\n\n".join([s['summary_text'] for s in summaries])
+    
+    # Simple text truncation for demo (instead of heavy AI models)
+    sentences = text.split('.')[:3]  # First 3 sentences
+    summary = '. '.join(sentences).strip()
+    
+    if len(summary) > 300:
+        summary = summary[:300] + "..."
+    
+    return summary if summary else "Document summary would appear here with full AI capabilities."
 
 # Mobile-optimized UI with Voice Interface
 st.markdown("""
