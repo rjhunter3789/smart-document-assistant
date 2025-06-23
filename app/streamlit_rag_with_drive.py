@@ -314,7 +314,7 @@ def extract_text_from_file(service, file_id, file_name):
         return f"Error extracting text: {str(e)}"
 
 def create_speech_component(text, doc_name):
-    """Create a text-to-speech component"""
+    """Create a text-to-speech component with enhanced compatibility"""
     # Truncate text for speech (first 500 characters)
     speech_text = text[:500] + "..." if len(text) > 500 else text
     
@@ -323,75 +323,214 @@ def create_speech_component(text, doc_name):
     clean_text = re.sub(r'[^\w\s.,!?-]', ' ', speech_text)
     clean_text = re.sub(r'\s+', ' ', clean_text).strip()
     
-    # Create HTML for speech synthesis
+    # Escape quotes and special characters for JavaScript
+    js_safe_text = clean_text.replace('"', '\\"').replace("'", "\\'").replace('\n', ' ')
+    
+    # Generate unique ID for this speech component
+    import random
+    component_id = f"speech_{random.randint(1000, 9999)}"
+    
+    # Create HTML for speech synthesis with enhanced error handling
     speech_html = f"""
-    <div style="background: #f0f8ff; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+    <div style="background: #f0f8ff; padding: 1rem; border-radius: 8px; margin: 1rem 0; border: 2px solid #4facfe;">
         <h4>🔊 Now Reading: {doc_name}</h4>
-        <p style="font-style: italic; color: #666;">"{clean_text}"</p>
-        <button onclick="speakText()" style="
-            background: linear-gradient(45deg, #56ab2f, #a8e6cf);
-            color: white;
-            border: none;
-            padding: 0.5rem 1rem;
+        <p style="font-style: italic; color: #666; margin: 0.5rem 0;">"{clean_text}"</p>
+        <div style="margin: 1rem 0;">
+            <button id="play_{component_id}" onclick="speakText_{component_id}()" style="
+                background: linear-gradient(45deg, #56ab2f, #a8e6cf);
+                color: white;
+                border: none;
+                padding: 0.7rem 1.2rem;
+                border-radius: 8px;
+                cursor: pointer;
+                margin-right: 0.5rem;
+                font-weight: bold;
+                font-size: 14px;
+            ">▶️ Play Speech</button>
+            <button id="stop_{component_id}" onclick="stopSpeech_{component_id}()" style="
+                background: #ff6b6b;
+                color: white;
+                border: none;
+                padding: 0.7rem 1.2rem;
+                border-radius: 8px;
+                cursor: pointer;
+                margin-right: 0.5rem;
+                font-weight: bold;
+                font-size: 14px;
+            ">⏹️ Stop</button>
+            <button id="pause_{component_id}" onclick="pauseSpeech_{component_id}()" style="
+                background: #ffa726;
+                color: white;
+                border: none;
+                padding: 0.7rem 1.2rem;
+                border-radius: 8px;
+                cursor: pointer;
+                margin-right: 0.5rem;
+                font-weight: bold;
+                font-size: 14px;
+            ">⏸️ Pause/Resume</button>
+            <button onclick="testAudio_{component_id}()" style="
+                background: #17a2b8;
+                color: white;
+                border: none;
+                padding: 0.7rem 1.2rem;
+                border-radius: 8px;
+                cursor: pointer;
+                font-weight: bold;
+                font-size: 14px;
+            ">🔧 Test Audio</button>
+        </div>
+        <div id="status_{component_id}" style="
+            background: #e9ecef;
+            padding: 0.5rem;
             border-radius: 5px;
-            cursor: pointer;
-            margin-right: 0.5rem;
-        ">▶️ Play</button>
-        <button onclick="stopSpeech()" style="
-            background: #ff6b6b;
-            color: white;
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-right: 0.5rem;
-        ">⏹️ Stop</button>
-        <button onclick="pauseSpeech()" style="
-            background: #ffa726;
-            color: white;
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 5px;
-            cursor: pointer;
-        ">⏸️ Pause</button>
+            margin-top: 0.5rem;
+            font-size: 12px;
+            color: #495057;
+        ">Ready to speak...</div>
     </div>
     
     <script>
-    let utterance;
+    // Speech variables for this component
+    let utterance_{component_id};
+    let voices_{component_id} = [];
     
-    function speakText() {{
-        if ('speechSynthesis' in window) {{
-            // Stop any ongoing speech
-            window.speechSynthesis.cancel();
-            
-            // Create new utterance
-            utterance = new SpeechSynthesisUtterance(`{clean_text}`);
-            utterance.rate = 0.9;
-            utterance.pitch = 1;
-            utterance.volume = 1;
-            
-            // Speak the text
-            window.speechSynthesis.speak(utterance);
-        }} else {{
-            alert('Text-to-speech not supported in this browser');
+    // Load voices when available
+    function loadVoices_{component_id}() {{
+        voices_{component_id} = speechSynthesis.getVoices();
+        console.log('Available voices:', voices_{component_id}.length);
+        updateStatus_{component_id}('Voices loaded: ' + voices_{component_id}.length + ' available');
+    }}
+    
+    // Update status display
+    function updateStatus_{component_id}(message) {{
+        const statusDiv = document.getElementById('status_{component_id}');
+        if (statusDiv) {{
+            statusDiv.innerHTML = message;
+            console.log('Speech Status:', message);
         }}
     }}
     
-    function stopSpeech() {{
+    // Test audio function
+    function testAudio_{component_id}() {{
+        updateStatus_{component_id}('Testing audio system...');
+        
+        if (!('speechSynthesis' in window)) {{
+            updateStatus_{component_id}('❌ Speech synthesis not supported in this browser');
+            alert('Text-to-speech is not supported in your browser. Try Chrome, Edge, or Safari.');
+            return;
+        }}
+        
+        // Test with simple text
+        const testUtterance = new SpeechSynthesisUtterance('Audio test. Can you hear this?');
+        testUtterance.volume = 1;
+        testUtterance.rate = 1;
+        testUtterance.pitch = 1;
+        
+        testUtterance.onstart = function() {{
+            updateStatus_{component_id}('🔊 Test audio playing...');
+        }};
+        
+        testUtterance.onend = function() {{
+            updateStatus_{component_id}('✅ Test completed. Did you hear the test?');
+        }};
+        
+        testUtterance.onerror = function(event) {{
+            updateStatus_{component_id}('❌ Test failed: ' + event.error);
+        }};
+        
+        speechSynthesis.speak(testUtterance);
+    }}
+    
+    // Main speak function
+    function speakText_{component_id}() {{
+        updateStatus_{component_id}('Initializing speech...');
+        
+        if (!('speechSynthesis' in window)) {{
+            updateStatus_{component_id}('❌ Speech synthesis not supported');
+            alert('Text-to-speech is not supported in your browser');
+            return;
+        }}
+        
+        // Stop any ongoing speech
+        speechSynthesis.cancel();
+        
+        // Wait a moment then create new utterance
+        setTimeout(function() {{
+            utterance_{component_id} = new SpeechSynthesisUtterance("{js_safe_text}");
+            
+            // Set speech parameters
+            utterance_{component_id}.volume = 1;      // Max volume
+            utterance_{component_id}.rate = 0.8;      // Slower for clarity
+            utterance_{component_id}.pitch = 1;       // Normal pitch
+            
+            // Try to use a good voice if available
+            if (voices_{component_id}.length > 0) {{
+                // Prefer English voices
+                const englishVoice = voices_{component_id}.find(voice => voice.lang.includes('en'));
+                if (englishVoice) {{
+                    utterance_{component_id}.voice = englishVoice;
+                    updateStatus_{component_id}('Using voice: ' + englishVoice.name);
+                }}
+            }}
+            
+            // Speech event handlers
+            utterance_{component_id}.onstart = function() {{
+                updateStatus_{component_id}('🔊 Speaking: "{doc_name}"');
+            }};
+            
+            utterance_{component_id}.onend = function() {{
+                updateStatus_{component_id}('✅ Speech completed');
+            }};
+            
+            utterance_{component_id}.onerror = function(event) {{
+                updateStatus_{component_id}('❌ Speech error: ' + event.error);
+                console.error('Speech error:', event);
+            }};
+            
+            utterance_{component_id}.onpause = function() {{
+                updateStatus_{component_id}('⏸️ Speech paused');
+            }};
+            
+            utterance_{component_id}.onresume = function() {{
+                updateStatus_{component_id}('▶️ Speech resumed');
+            }};
+            
+            // Start speaking
+            speechSynthesis.speak(utterance_{component_id});
+            
+        }}, 100);
+    }}
+    
+    function stopSpeech_{component_id}() {{
         if ('speechSynthesis' in window) {{
-            window.speechSynthesis.cancel();
+            speechSynthesis.cancel();
+            updateStatus_{component_id}('⏹️ Speech stopped');
         }}
     }}
     
-    function pauseSpeech() {{
+    function pauseSpeech_{component_id}() {{
         if ('speechSynthesis' in window) {{
-            if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {{
-                window.speechSynthesis.pause();
-            }} else if (window.speechSynthesis.paused) {{
-                window.speechSynthesis.resume();
+            if (speechSynthesis.speaking && !speechSynthesis.paused) {{
+                speechSynthesis.pause();
+                updateStatus_{component_id}('⏸️ Speech paused');
+            }} else if (speechSynthesis.paused) {{
+                speechSynthesis.resume();
+                updateStatus_{component_id}('▶️ Speech resumed');
+            }} else {{
+                updateStatus_{component_id}('ℹ️ No speech to pause');
             }}
         }}
     }}
+    
+    // Initialize voices when available
+    if (speechSynthesis.onvoiceschanged !== undefined) {{
+        speechSynthesis.onvoiceschanged = loadVoices_{component_id};
+    }}
+    
+    // Load voices immediately if already available
+    setTimeout(loadVoices_{component_id}, 100);
+    
     </script>
     """
     
