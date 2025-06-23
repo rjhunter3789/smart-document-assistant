@@ -317,7 +317,59 @@ def extract_text_from_file(service, file_id, file_name):
     except Exception as e:
         return f"Error extracting text: {str(e)}"
 
-# Removed the old create_speech_component function since we're using Streamlit components directly
+def smart_text_truncate(text, max_length=500):
+    """Intelligently truncate text at sentence boundaries for natural speech"""
+    if not text or len(text) <= max_length:
+        return text
+    
+    # Clean up the text first
+    import re
+    text = re.sub(r'\s+', ' ', text).strip()  # Remove extra whitespace
+    text = re.sub(r'[^\w\s.,!?;:-]', '', text)  # Remove special chars but keep punctuation
+    
+    # If text is short enough, return as-is
+    if len(text) <= max_length:
+        return text
+    
+    # Find the best place to cut - look for sentence endings near the limit
+    truncated = text[:max_length]
+    
+    # Look for sentence endings (. ! ?) in the last 100 characters
+    sentence_endings = []
+    for i, char in enumerate(truncated):
+        if char in '.!?':
+            sentence_endings.append(i)
+    
+    if sentence_endings:
+        # Cut at the last complete sentence
+        cut_point = sentence_endings[-1] + 1
+        result = text[:cut_point].strip()
+        if len(result) > 50:  # Make sure we don't get too short
+            return result
+    
+    # If no good sentence ending, look for clause endings (, ; :)
+    clause_endings = []
+    for i, char in enumerate(truncated):
+        if char in ',;:':
+            clause_endings.append(i)
+    
+    if clause_endings:
+        # Cut at the last clause ending
+        cut_point = clause_endings[-1] + 1
+        result = text[:cut_point].strip()
+        if len(result) > 100:  # Make sure we have substantial content
+            return result
+    
+    # Last resort: cut at word boundary
+    words = truncated.split(' ')
+    if len(words) > 1:
+        # Remove the last incomplete word
+        complete_words = ' '.join(words[:-1])
+        if len(complete_words) > 50:
+            return complete_words + "..."
+    
+    # Fallback: just truncate and add ellipsis
+    return truncated + "..."
 
 def generate_summary(text):
     """Generate a simple summary (lightweight version)"""
@@ -844,14 +896,17 @@ if docs:
                 if demo_mode:
                     # Demo text-to-speech using Streamlit components
                     demo_texts = [
-                        "This AI Strategy presentation outlines our company's approach to implementing artificial intelligence across key business functions.",
-                        "Q4 sales exceeded targets by 15% with strong enterprise performance and recurring revenue growth.",
-                        "Customer analysis reveals significant increase in mobile app usage and improved satisfaction scores.",
-                        "2025 product roadmap focuses on user experience enhancements and AI-powered features.",
-                        "Team performance metrics show productivity improvement with new workflow optimizations.",
-                        "Marketing campaign achieved strong ROI with excellent digital performance and engagement."
+                        "This AI Strategy presentation outlines our company's approach to implementing artificial intelligence across key business functions. It covers market trends, competitive analysis, and a comprehensive three-year AI adoption roadmap for automotive dealerships.",
+                        "Q4 sales exceeded targets by 15% with exceptional enterprise performance. Key highlights include 23% growth in recurring revenue and successful premium tier launch across all dealer locations.",
+                        "Customer analysis reveals a 45% increase in mobile app usage with significant improvements in user experience. Demographics show strong growth in the 25-34 age segment with improved satisfaction scores reaching 4.6 out of 5 stars.",
+                        "The 2025 product roadmap focuses on user experience enhancements, AI-powered features, and platform scalability. Major releases are planned for Q2 and Q4 with advanced automotive integration capabilities.",
+                        "Team performance metrics demonstrate 12% productivity improvement with new workflow optimizations. Employee satisfaction has reached an all-time high of 4.6 out of 5, reflecting successful change management initiatives.",
+                        "Marketing campaign achieved an impressive 3.2x return on investment with strong digital performance. Email open rates reached 28%, social engagement increased by 67%, making this our most successful campaign to date."
                     ]
                     demo_text = demo_texts[i % len(demo_texts)]
+                    
+                    # Use smart truncation for natural speech
+                    speech_text = smart_text_truncate(demo_text, 400)
                     
                     # Create a working speech component using Streamlit's method
                     st.markdown(f"""
@@ -1003,8 +1058,8 @@ if docs:
                         with st.spinner("Extracting text for speech..."):
                             file_text = extract_text_from_file(service, doc['id'], doc_name)
                             if file_text and not file_text.startswith("Error"):
-                                # Get first 300 characters for speech
-                                speech_text = file_text[:300] + "..." if len(file_text) > 300 else file_text
+                                # Use smart truncation to end at complete sentences
+                                speech_text = smart_text_truncate(file_text, 600)
                                 clean_text = speech_text.replace('"', '\\"').replace("'", "\\'").replace('\n', ' ')
                                 
                                 st.markdown(f"""
