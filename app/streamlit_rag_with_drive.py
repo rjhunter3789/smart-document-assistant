@@ -385,7 +385,7 @@ def generate_summary(text):
     
     return summary if summary else "Document summary would appear here with full AI capabilities."
 
-def process_voice_command(docs, service, demo_mode):
+def process_voice_command(docs, service):
     """Process voice commands and execute actions"""
     if 'voice_command' in st.session_state and st.session_state.voice_command:
         command = st.session_state.voice_command
@@ -409,52 +409,56 @@ def process_voice_command(docs, service, demo_mode):
             if action == 'summarize':
                 st.markdown("### 🤖 Auto-Generated Summary")
                 
-                if demo_mode or 'id' not in target_doc:
-                    # Demo summary
-                    demo_summaries = {
-                        'chat': "ChatAI Introduction and FAQ: This document covers the basics of AI-powered chat systems, including implementation strategies, common questions, and best practices for automotive dealerships.",
-                        'impel': "Impel AI Platform Review: Comprehensive analysis of Impel's automotive AI platform, comparing features with competitors and outlining integration benefits for dealership operations.",
-                        'automotive': "Automotive AI Platform Comparison: Detailed evaluation of leading AI platforms in the automotive sector, including cost analysis and ROI projections."
-                    }
-                    
-                    summary = next((v for k, v in demo_summaries.items() if k in search_term), 
-                                 f"AI Summary of {doc_name}: This document contains important information relevant to your automotive business operations and strategic decisions.")
-                    
-                    st.info(f"📋 **Summary of {doc_name}:**\n\n{summary}")
-                    
-                    # Auto-read the summary
-                    speech_component = create_speech_component(summary, f"Summary of {doc_name}")
-                    st.markdown(speech_component, unsafe_allow_html=True)
-                    
-                else:
-                    # Real document summary
-                    with st.spinner(f"Analyzing {doc_name}..."):
-                        file_text = extract_text_from_file(service, target_doc['id'], doc_name)
-                        if file_text and not file_text.startswith("Error"):
-                            summary = generate_summary(file_text)
-                            st.info(f"📋 **Summary of {doc_name}:**\n\n{summary}")
-                            
-                            # Auto-read the summary
-                            speech_component = create_speech_component(summary, f"Summary of {doc_name}")
-                            st.markdown(speech_component, unsafe_allow_html=True)
-                        else:
-                            st.error("Unable to analyze document")
+                # Real document summary
+                with st.spinner(f"Analyzing {doc_name}..."):
+                    file_text = extract_text_from_file(service, target_doc['id'], doc_name)
+                    if file_text and not file_text.startswith("Error"):
+                        summary = generate_summary(file_text)
+                        st.info(f"📋 **Summary of {doc_name}:**\n\n{summary}")
+                        
+                        # Auto-read the summary using speech synthesis
+                        st.components.v1.html(f"""
+                        <script>
+                        setTimeout(function() {{
+                            if ('speechSynthesis' in window) {{
+                                const utterance = new SpeechSynthesisUtterance('{summary.replace("'", "\\'")}');
+                                utterance.rate = 0.8;
+                                utterance.pitch = 1.0;
+                                utterance.volume = 1.0;
+                                speechSynthesis.speak(utterance);
+                            }}
+                        }}, 1000);
+                        </script>
+                        """, height=0)
+                    else:
+                        st.error("Unable to analyze document")
             
             elif action == 'read':
                 st.markdown("### 🔊 Auto-Reading Document")
                 
-                if demo_mode or 'id' not in target_doc:
-                    demo_text = f"Now reading {doc_name}. This is a demonstration of the voice reading capability for automotive document management."
-                    speech_component = create_speech_component(demo_text, doc_name)
-                    st.markdown(speech_component, unsafe_allow_html=True)
-                else:
-                    with st.spinner(f"Extracting text from {doc_name}..."):
-                        file_text = extract_text_from_file(service, target_doc['id'], doc_name)
-                        if file_text and not file_text.startswith("Error"):
-                            speech_component = create_speech_component(file_text, doc_name)
-                            st.markdown(speech_component, unsafe_allow_html=True)
-                        else:
-                            st.error("Unable to extract text for reading")
+                with st.spinner(f"Extracting text from {doc_name}..."):
+                    file_text = extract_text_from_file(service, target_doc['id'], doc_name)
+                    if file_text and not file_text.startswith("Error"):
+                        # Truncate for speech
+                        speech_text = smart_text_truncate(file_text, 600)
+                        st.info(f"🔊 Reading: {doc_name}")
+                        
+                        # Auto-read the document
+                        st.components.v1.html(f"""
+                        <script>
+                        setTimeout(function() {{
+                            if ('speechSynthesis' in window) {{
+                                const utterance = new SpeechSynthesisUtterance('{speech_text.replace("'", "\\'")}');
+                                utterance.rate = 0.8;
+                                utterance.pitch = 1.0;
+                                utterance.volume = 1.0;
+                                speechSynthesis.speak(utterance);
+                            }}
+                        }}, 1000);
+                        </script>
+                        """, height=0)
+                    else:
+                        st.error("Unable to extract text for reading")
             
             elif action == 'find':
                 st.markdown("### 🔍 Search Results")
@@ -467,16 +471,6 @@ def process_voice_command(docs, service, demo_mode):
             
         else:
             st.warning(f"❌ No documents found matching '{search_term}'. Try a different search term.")
-
-# Demo documents for fallback
-demo_docs = [
-    {'id': 'demo_1', 'name': 'AI Strategy Presentation.pdf', 'mimeType': 'application/pdf'},
-    {'id': 'demo_2', 'name': 'Q4 Sales Report.docx', 'mimeType': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'},
-    {'id': 'demo_3', 'name': 'Customer Analysis Dashboard.xlsx', 'mimeType': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'},
-    {'id': 'demo_4', 'name': 'Product Roadmap 2025.pdf', 'mimeType': 'application/pdf'},
-    {'id': 'demo_5', 'name': 'Team Performance Metrics.docx', 'mimeType': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'},
-    {'id': 'demo_6', 'name': 'Marketing Campaign Results.pdf', 'mimeType': 'application/pdf'}
-]
 
 # Main UI
 st.markdown("""
@@ -655,26 +649,26 @@ if 'selected_folder_path' not in st.session_state:
 # Authentication and Google Drive setup
 try:
     service = authenticate_gdrive()
-    demo_mode = service is None
     
     if service:
         st.success("🔗 Connected to Google Drive! Loading your folders...")
     else:
-        st.warning("⚠️ Google Drive not connected. Using demo mode.")
+        st.error("🚫 Google Drive not connected. Please check your authentication credentials.")
         
 except Exception as e:
     st.error(f"🚫 Authentication setup failed: {str(e)}")
     service = None
-    demo_mode = True
 
 # Google Drive folder setup
 root_id = "1galnuNa9g7xoULx3Ka8vs79-NuJUA4n6"  # Your root folder ID
 all_folders = []
 docs = []
 
-if not demo_mode and service:
+if service:
     # Get all folders (with smart caching)
     try:
+        docs = []  # Initialize as empty list
+
         # Check if we need to refresh cache (20 minute expiry - balance between freshness and load time)
         import time
         current_time = time.time()
@@ -737,8 +731,7 @@ if not demo_mode and service:
                 
                 if not accessible_main_folders:
                     st.error(f"No folders found for {user_identity}. Please contact your administrator.")
-                    docs = demo_docs
-                    demo_mode = True
+                    docs = []
                 else:
                     # Step 1: Select main folder (filtered by user identity)
                     selected_main_folder = st.selectbox(
@@ -791,8 +784,7 @@ if not demo_mode and service:
                             selected_folder_path = selected_main_folder
                     else:
                         st.error(f"🚫 Access denied: {user_identity} cannot access {selected_main_folder} folder")
-                        docs = demo_docs
-                        demo_mode = True
+                        docs = []
                         selected_folder = None
                     
                     # Load files with security validation
@@ -805,41 +797,32 @@ if not demo_mode and service:
                             
                             if docs:
                                 st.success(f"📄 Found **{len(docs)}** files in **{selected_folder['name']}**")
-                                demo_mode = False
                             else:
                                 st.warning(f"No files found in {selected_folder['full_path']}. Folder appears to be empty.")
-                                st.info("Showing demo documents instead.")
-                                docs = demo_docs
-                                demo_mode = True
+                                docs = []
                         else:
                             st.error(f"🚫 Security violation: {user_identity} attempted to access unauthorized folder {selected_folder['full_path']}")
-                            docs = demo_docs
-                            demo_mode = True
+                            docs = []
                     else:
                         st.warning("Please select a folder to view its contents.")
-                        docs = demo_docs
-                        demo_mode = True
+                        docs = []
             else:
                 st.warning("Please select your identity to continue.")
-                docs = demo_docs
-                demo_mode = True
+                docs = []
         else:
-            st.warning("No folders found in Google Drive. Showing demo documents.")
-            docs = demo_docs
-            demo_mode = True
+            st.warning("No folders found in Google Drive.")
+            docs = []
             
     except Exception as e:
         st.error(f"Error loading Google Drive folders: {str(e)}")
-        docs = demo_docs
-        demo_mode = True
+        docs = []
 else:
-    # Demo mode
-    st.info("📁 **Demo Mode:** Showing sample documents")
-    docs = demo_docs
+    st.error("Please authenticate with Google Drive to continue.")
+    docs = []
 
 # Process voice commands if any
 if docs:
-    process_voice_command(docs, service if not demo_mode else None, demo_mode)
+    process_voice_command(docs, service)
 
 # Apply search filter
 if active_query and docs:
@@ -856,10 +839,7 @@ st.markdown("---")
 st.markdown("### 📄 Documents")
 
 if docs:
-    if demo_mode:
-        st.info(f"**Demo Mode:** Showing {len(docs)} sample documents")
-    else:
-        st.success(f"**{len(docs)} documents** from **{selected_folder_path}**")
+    st.success(f"**{len(docs)} documents** from **{selected_folder_path}**")
     
     # Display each document
     for i, doc in enumerate(docs):
@@ -876,345 +856,190 @@ if docs:
         
         with col1:
             if st.button("📖 Summary", key=f"sum_{i}", use_container_width=True):
-                if demo_mode:
-                    # Demo summaries
-                    demo_summaries = [
-                        "This AI Strategy presentation outlines our company's approach to implementing artificial intelligence across key business functions. It covers market trends, competitive analysis, and a 3-year AI adoption roadmap.",
-                        "Q4 sales exceeded targets by 15% with strong enterprise performance. Key highlights include 23% growth in recurring revenue and successful premium tier launch.",
-                        "Customer analysis reveals 45% increase in mobile app usage. Demographics show growth in 25-34 age segment with improved satisfaction scores.",
-                        "2025 product roadmap focuses on user experience enhancements, AI-powered features, and platform scalability with major Q2 and Q4 releases.",
-                        "Team performance metrics show 12% productivity improvement with new workflow optimizations. Employee satisfaction reached 4.6/5.",
-                        "Marketing campaign achieved 3.2x ROI with strong digital performance. Email open rates at 28%, social engagement up 67%."
-                    ]
-                    summary = demo_summaries[i % len(demo_summaries)]
-                    st.success(f"**📋 AI Summary:** {summary}")
+                # Real document summary
+                if 'id' in doc:
+                    with st.spinner(f"Analyzing {doc_name}..."):
+                        file_text = extract_text_from_file(service, doc['id'], doc_name)
+                        if file_text and not file_text.startswith("Error"):
+                            summary = generate_summary(file_text)
+                            st.success(f"**📋 AI Summary:** {summary}")
+                            
+                            # Auto-read the summary
+                            st.components.v1.html(f"""
+                            <script>
+                            setTimeout(function() {{
+                                if ('speechSynthesis' in window) {{
+                                    const utterance = new SpeechSynthesisUtterance('{summary.replace("'", "\\'")}');
+                                    utterance.rate = 0.8;
+                                    utterance.pitch = 1.0;
+                                    utterance.volume = 1.0;
+                                    speechSynthesis.speak(utterance);
+                                }}
+                            }}, 1000);
+                            </script>
+                            """, height=0)
+                        else:
+                            st.error("Unable to analyze document")
                 else:
-                    st.success(f"**📋 Real Document Analysis:** This would analyze '{doc_name}' from your Google Drive folder '{selected_folder_path}' using AI!")
+                    st.error("Unable to analyze: File ID not available")
         
         with col2:
             if st.button("🔊 Read", key=f"speak_{i}", use_container_width=True):
-                if demo_mode:
-                    # Demo text-to-speech using Streamlit components
-                    demo_texts = [
-                        "This AI Strategy presentation outlines our company's approach to implementing artificial intelligence across key business functions. It covers market trends, competitive analysis, and a comprehensive three-year AI adoption roadmap for automotive dealerships.",
-                        "Q4 sales exceeded targets by 15% with exceptional enterprise performance. Key highlights include 23% growth in recurring revenue and successful premium tier launch across all dealer locations.",
-                        "Customer analysis reveals a 45% increase in mobile app usage with significant improvements in user experience. Demographics show strong growth in the 25-34 age segment with improved satisfaction scores reaching 4.6 out of 5 stars.",
-                        "The 2025 product roadmap focuses on user experience enhancements, AI-powered features, and platform scalability. Major releases are planned for Q2 and Q4 with advanced automotive integration capabilities.",
-                        "Team performance metrics demonstrate 12% productivity improvement with new workflow optimizations. Employee satisfaction has reached an all-time high of 4.6 out of 5, reflecting successful change management initiatives.",
-                        "Marketing campaign achieved an impressive 3.2x return on investment with strong digital performance. Email open rates reached 28%, social engagement increased by 67%, making this our most successful campaign to date."
-                    ]
-                    demo_text = demo_texts[i % len(demo_texts)]
-                    
-                    # Use smart truncation for natural speech
-                    speech_text = smart_text_truncate(demo_text, 400)
-                    
-                    # Create a working speech component using Streamlit's method
-                    st.markdown(f"""
-                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 12px; margin: 1rem 0; color: white;">
-                        <h4 style="margin-top: 0; color: white;">🔊 Now Reading: {doc_name}</h4>
-                        <p style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 6px; font-style: italic; margin: 1rem 0;">
-                            "{demo_text}"
-                        </p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    # Show controls after starting speech
-                    col_stop, col_pause = st.columns([1, 1])
-                    with col_stop:
-                        if st.button("⏹️ Stop Speech", key=f"stop_speech_{i}", use_container_width=True):
-                            st.components.v1.html("""
-                            <script>
-                            if ('speechSynthesis' in window) {
-                                speechSynthesis.cancel();
-                            }
-                            document.body.innerHTML = '<div style="background: #dc3545; color: white; padding: 10px; text-align: center; border-radius: 5px;">⏹️ Speech Stopped</div>';
-                            </script>
-                            """, height=50)
-                    
-                    with col_pause:
-                        if st.button("⏸️ Pause/Resume", key=f"pause_speech_{i}", use_container_width=True):
-                            st.components.v1.html("""
-                            <script>
-                            if ('speechSynthesis' in window) {
-                                if (speechSynthesis.speaking && !speechSynthesis.paused) {
-                                    speechSynthesis.pause();
-                                    document.body.innerHTML = '<div style="background: #ffc107; color: black; padding: 10px; text-align: center; border-radius: 5px;">⏸️ Speech Paused</div>';
-                                } else if (speechSynthesis.paused) {
-                                    speechSynthesis.resume();
-                                    document.body.innerHTML = '<div style="background: #28a745; color: white; padding: 10px; text-align: center; border-radius: 5px;">▶️ Speech Resumed</div>';
-                                }
-                            }
-                            </script>
-                            """, height=50)
-                    st.components.v1.html(f"""
-                    <script>
-                    // Wait for page to load then speak with best voice
-                    window.addEventListener('load', function() {{
-                        setTimeout(function() {{
-                            if ('speechSynthesis' in window) {{
-                                // Get all available voices
-                                let voices = speechSynthesis.getVoices();
-                                
-                                // If voices not loaded yet, wait for them
-                                if (voices.length === 0) {{
-                                    speechSynthesis.onvoiceschanged = function() {{
-                                        voices = speechSynthesis.getVoices();
-                                        speakWithBestVoice(voices);
-                                    }};
-                                }} else {{
-                                    speakWithBestVoice(voices);
-                                }}
-                                
-                                function speakWithBestVoice(voices) {{
-                                    console.log('Available voices:', voices.length);
-                                    
-                                    // Priority list for best English voices (most natural first)
-                                    const preferredVoices = [
-                                        // Windows high-quality voices
-                                        'Microsoft Zira - English (United States)',
-                                        'Microsoft David - English (United States)', 
-                                        'Microsoft Mark - English (United States)',
-                                        'Microsoft Hazel - English (Great Britain)',
-                                        
-                                        // macOS high-quality voices
-                                        'Alex', 'Samantha', 'Victoria', 'Karen', 'Daniel',
-                                        'Fiona', 'Moira', 'Tessa',
-                                        
-                                        // Chrome/Edge premium voices
-                                        'Google US English', 'Chrome OS US English',
-                                        'Microsoft Edge English',
-                                        
-                                        // Android premium voices
-                                        'en-US-language', 'en-us-x-sfg-network',
-                                        'en-US-Wavenet', 'English United States',
-                                        
-                                        // iOS premium voices
-                                        'Ava (Enhanced)', 'Allison (Enhanced)', 
-                                        'Tom (Enhanced)', 'Susan (Enhanced)'
-                                    ];
-                                    
-                                    let selectedVoice = null;
-                                    
-                                    // Try to find the best voice
-                                    for (let preferred of preferredVoices) {{
-                                        selectedVoice = voices.find(voice => 
-                                            voice.name.includes(preferred) ||
-                                            voice.name === preferred
-                                        );
-                                        if (selectedVoice) break;
-                                    }}
-                                    
-                                    // Fallback: find any good English voice
-                                    if (!selectedVoice) {{
-                                        selectedVoice = voices.find(voice => 
-                                            voice.lang.includes('en-US') && voice.name.toLowerCase().includes('enhanced')
-                                        ) || voices.find(voice => 
-                                            voice.lang.includes('en-US') && voice.name.toLowerCase().includes('premium')
-                                        ) || voices.find(voice => 
-                                            voice.lang.includes('en-US') && !voice.name.toLowerCase().includes('compact')
-                                        ) || voices.find(voice => 
-                                            voice.lang.includes('en')
-                                        ) || voices[0];
-                                    }}
-                                    
-                                    const utterance = new SpeechSynthesisUtterance(`{demo_text.replace('"', '\\"').replace("'", "\\'")}`);
-                                    
-                                    // Use the selected high-quality voice
-                                    if (selectedVoice) {{
-                                        utterance.voice = selectedVoice;
-                                        console.log('Using voice:', selectedVoice.name);
-                                    }}
-                                    
-                                    // Optimize speech parameters for natural sound
-                                    utterance.rate = 0.85;      // Slightly slower for clarity
-                                    utterance.pitch = 1.0;     // Natural pitch
-                                    utterance.volume = 1.0;    // Full volume
-                                    
-                                    speechSynthesis.speak(utterance);
-                                    
-                                    // Show visual feedback with voice info
-                                    document.body.style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
-                                    document.body.style.color = 'white';
-                                    document.body.style.padding = '20px';
-                                    document.body.style.borderRadius = '10px';
-                                    document.body.innerHTML = `
-                                        <h3>🔊 Speaking: {doc_name}</h3>
-                                        <p>Voice: ${{selectedVoice ? selectedVoice.name : 'Default'}}</p>
-                                        <p>Audio is playing with enhanced voice quality...</p>
-                                    `;
-                                }}
-                            }}
-                        }}, 500);
-                    }});
-                    </script>
-                    <div style="background: #28a745; color: white; padding: 10px; text-align: center; border-radius: 5px;">
-                        🔊 Loading premium voice... (You should hear high-quality speech)
-                    </div>
-                    """, height=100)
-                    
-                else:
-                    # Real document text-to-speech
-                    if 'id' in doc:
-                        with st.spinner("Extracting text for speech..."):
-                            file_text = extract_text_from_file(service, doc['id'], doc_name)
-                            if file_text and not file_text.startswith("Error"):
-                                # Use smart truncation to end at complete sentences
-                                speech_text = smart_text_truncate(file_text, 600)
-                                clean_text = speech_text.replace('"', '\\"').replace("'", "\\'").replace('\n', ' ')
-                                
-                                st.markdown(f"""
-                                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 12px; margin: 1rem 0; color: white;">
-                                    <h4 style="margin-top: 0; color: white;">🔊 Now Reading: {doc_name}</h4>
-                                    <p style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 6px; font-style: italic; margin: 1rem 0;">
-                                        "{speech_text}"
-                                    </p>
-                                </div>
-                                """, unsafe_allow_html=True)
-                                
-                                # Add stop/pause controls for real documents too
-                                col_stop, col_pause = st.columns([1, 1])
-                                with col_stop:
-                                    if st.button("⏹️ Stop Speech", key=f"stop_real_{i}", use_container_width=True):
-                                        st.components.v1.html("""
-                                        <script>
-                                        if ('speechSynthesis' in window) {
-                                            speechSynthesis.cancel();
+                # Real document text-to-speech
+                if 'id' in doc:
+                    with st.spinner("Extracting text for speech..."):
+                        file_text = extract_text_from_file(service, doc['id'], doc_name)
+                        if file_text and not file_text.startswith("Error"):
+                            # Use smart truncation to end at complete sentences
+                            speech_text = smart_text_truncate(file_text, 600)
+                            clean_text = speech_text.replace('"', '\\"').replace("'", "\\'").replace('\n', ' ')
+                            
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 12px; margin: 1rem 0; color: white;">
+                                <h4 style="margin-top: 0; color: white;">🔊 Now Reading: {doc_name}</h4>
+                                <p style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 6px; font-style: italic; margin: 1rem 0;">
+                                    "{speech_text}"
+                                </p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            # Add stop/pause controls
+                            col_stop, col_pause = st.columns([1, 1])
+                            with col_stop:
+                                if st.button("⏹️ Stop Speech", key=f"stop_real_{i}", use_container_width=True):
+                                    st.components.v1.html("""
+                                    <script>
+                                    if ('speechSynthesis' in window) {
+                                        speechSynthesis.cancel();
+                                    }
+                                    document.body.innerHTML = '<div style="background: #dc3545; color: white; padding: 10px; text-align: center; border-radius: 5px;">⏹️ Document Speech Stopped</div>';
+                                    </script>
+                                    """, height=50)
+                            
+                            with col_pause:
+                                if st.button("⏸️ Pause/Resume", key=f"pause_real_{i}", use_container_width=True):
+                                    st.components.v1.html("""
+                                    <script>
+                                    if ('speechSynthesis' in window) {
+                                        if (speechSynthesis.speaking && !speechSynthesis.paused) {
+                                            speechSynthesis.pause();
+                                            document.body.innerHTML = '<div style="background: #ffc107; color: black; padding: 10px; text-align: center; border-radius: 5px;">⏸️ Document Paused</div>';
+                                        } else if (speechSynthesis.paused) {
+                                            speechSynthesis.resume();
+                                            document.body.innerHTML = '<div style="background: #28a745; color: white; padding: 10px; text-align: center; border-radius: 5px;">▶️ Document Resumed</div>';
                                         }
-                                        document.body.innerHTML = '<div style="background: #dc3545; color: white; padding: 10px; text-align: center; border-radius: 5px;">⏹️ Document Speech Stopped</div>';
-                                        </script>
-                                        """, height=50)
-                                
-                                with col_pause:
-                                    if st.button("⏸️ Pause/Resume", key=f"pause_real_{i}", use_container_width=True):
-                                        st.components.v1.html("""
-                                        <script>
-                                        if ('speechSynthesis' in window) {
-                                            if (speechSynthesis.speaking && !speechSynthesis.paused) {
-                                                speechSynthesis.pause();
-                                                document.body.innerHTML = '<div style="background: #ffc107; color: black; padding: 10px; text-align: center; border-radius: 5px;">⏸️ Document Paused</div>';
-                                            } else if (speechSynthesis.paused) {
-                                                speechSynthesis.resume();
-                                                document.body.innerHTML = '<div style="background: #28a745; color: white; padding: 10px; text-align: center; border-radius: 5px;">▶️ Document Resumed</div>';
-                                            }
-                                        }
-                                        </script>
-                                        """, height=50)
-                                st.components.v1.html(f"""
-                                <script>
-                                window.addEventListener('load', function() {{
-                                    setTimeout(function() {{
-                                        if ('speechSynthesis' in window) {{
-                                            let voices = speechSynthesis.getVoices();
-                                            
-                                            if (voices.length === 0) {{
-                                                speechSynthesis.onvoiceschanged = function() {{
-                                                    voices = speechSynthesis.getVoices();
-                                                    speakDocument(voices);
-                                                }};
-                                            }} else {{
+                                    }
+                                    </script>
+                                    """, height=50)
+                            
+                            st.components.v1.html(f"""
+                            <script>
+                            window.addEventListener('load', function() {{
+                                setTimeout(function() {{
+                                    if ('speechSynthesis' in window) {{
+                                        let voices = speechSynthesis.getVoices();
+                                        
+                                        if (voices.length === 0) {{
+                                            speechSynthesis.onvoiceschanged = function() {{
+                                                voices = speechSynthesis.getVoices();
                                                 speakDocument(voices);
+                                            }};
+                                        }} else {{
+                                            speakDocument(voices);
+                                        }}
+                                        
+                                        function speakDocument(voices) {{
+                                            // Premium voice selection for documents
+                                            const preferredVoices = [
+                                                'Microsoft Zira - English (United States)',
+                                                'Microsoft David - English (United States)', 
+                                                'Alex', 'Samantha', 'Victoria',
+                                                'Google US English', 'Ava (Enhanced)',
+                                                'en-US-Wavenet'
+                                            ];
+                                            
+                                            let selectedVoice = null;
+                                            for (let preferred of preferredVoices) {{
+                                                selectedVoice = voices.find(voice => 
+                                                    voice.name.includes(preferred) || voice.name === preferred
+                                                );
+                                                if (selectedVoice) break;
                                             }}
                                             
-                                            function speakDocument(voices) {{
-                                                // Premium voice selection for documents
-                                                const preferredVoices = [
-                                                    'Microsoft Zira - English (United States)',
-                                                    'Microsoft David - English (United States)', 
-                                                    'Alex', 'Samantha', 'Victoria',
-                                                    'Google US English', 'Ava (Enhanced)',
-                                                    'en-US-Wavenet'
-                                                ];
-                                                
-                                                let selectedVoice = null;
-                                                for (let preferred of preferredVoices) {{
-                                                    selectedVoice = voices.find(voice => 
-                                                        voice.name.includes(preferred) || voice.name === preferred
-                                                    );
-                                                    if (selectedVoice) break;
-                                                }}
-                                                
-                                                // Fallback to best available English voice
-                                                if (!selectedVoice) {{
-                                                    selectedVoice = voices.find(voice => 
-                                                        voice.lang.includes('en-US') && !voice.name.toLowerCase().includes('compact')
-                                                    ) || voices.find(voice => voice.lang.includes('en')) || voices[0];
-                                                }}
-                                                
-                                                const utterance = new SpeechSynthesisUtterance(`{clean_text}`);
-                                                
-                                                if (selectedVoice) {{
-                                                    utterance.voice = selectedVoice;
-                                                }}
-                                                
-                                                // Professional speech settings for documents
-                                                utterance.rate = 0.8;       // Slower for business documents
-                                                utterance.pitch = 1.0;     // Natural pitch
-                                                utterance.volume = 1.0;    // Full volume
-                                                
-                                                speechSynthesis.speak(utterance);
-                                                
-                                                document.body.style.background = 'linear-gradient(45deg, #28a745, #20c997)';
-                                                document.body.style.color = 'white';
-                                                document.body.style.padding = '20px';
-                                                document.body.style.borderRadius = '10px';
-                                                document.body.innerHTML = `
-                                                    <h3>🔊 Reading Document: {doc_name}</h3>
-                                                    <p>High-Quality Voice: ${{selectedVoice ? selectedVoice.name : 'Default'}}</p>
-                                                    <p>Playing professional document audio...</p>
-                                                `;
+                                            // Fallback to best available English voice
+                                            if (!selectedVoice) {{
+                                                selectedVoice = voices.find(voice => 
+                                                    voice.lang.includes('en-US') && !voice.name.toLowerCase().includes('compact')
+                                                ) || voices.find(voice => voice.lang.includes('en')) || voices[0];
                                             }}
+                                            
+                                            const utterance = new SpeechSynthesisUtterance(`{clean_text}`);
+                                            
+                                            if (selectedVoice) {{
+                                                utterance.voice = selectedVoice;
+                                            }}
+                                            
+                                            // Professional speech settings for documents
+                                            utterance.rate = 0.8;       // Slower for business documents
+                                            utterance.pitch = 1.0;     // Natural pitch
+                                            utterance.volume = 1.0;    // Full volume
+                                            
+                                            speechSynthesis.speak(utterance);
+                                            
+                                            document.body.style.background = 'linear-gradient(45deg, #28a745, #20c997)';
+                                            document.body.style.color = 'white';
+                                            document.body.style.padding = '20px';
+                                            document.body.style.borderRadius = '10px';
+                                            document.body.innerHTML = `
+                                                <h3>🔊 Reading Document: {doc_name}</h3>
+                                                <p>High-Quality Voice: ${{selectedVoice ? selectedVoice.name : 'Default'}}</p>
+                                                <p>Playing professional document audio...</p>
+                                            `;
                                         }}
-                                    }}, 500);
-                                }});
-                                </script>
-                                <div style="background: #28a745; color: white; padding: 10px; text-align: center; border-radius: 5px;">
-                                    🔊 Loading premium voice for document... Enhanced audio quality
-                                </div>
-                                """, height=100)
-                            else:
-                                st.error("Unable to extract text for speech synthesis")
-                    else:
-                        st.error("Unable to read file: File ID not available")
+                                    }}
+                                }}, 500);
+                            }});
+                            </script>
+                            <div style="background: #28a745; color: white; padding: 10px; text-align: center; border-radius: 5px;">
+                                🔊 Loading premium voice for document... Enhanced audio quality
+                            </div>
+                            """, height=100)
+                        else:
+                            st.error("Unable to extract text for speech synthesis")
+                else:
+                    st.error("Unable to read file: File ID not available")
         
         with col3:
             if st.button("⬇️ Download", key=f"dl_{i}", use_container_width=True):
-                if demo_mode:
-                    st.success(f"✅ **Demo Download:** In production, {doc_name} would download from Google Drive!")
+                # Real download functionality
+                if 'id' in doc:
+                    with st.spinner("Downloading..."):
+                        file_path = download_file(service, doc['id'], doc_name)
+                        if file_path:
+                            st.success(f"✅ **Downloaded:** {doc_name}")
+                            with open(file_path, 'rb') as f:
+                                st.download_button(
+                                    label=f"💾 Save {doc_name}",
+                                    data=f.read(),
+                                    file_name=doc_name,
+                                    key=f"download_btn_{i}"
+                                )
                 else:
-                    # Real download functionality
-                    if 'id' in doc:
-                        with st.spinner("Downloading..."):
-                            file_path = download_file(service, doc['id'], doc_name)
-                            if file_path:
-                                st.success(f"✅ **Downloaded:** {doc_name}")
-                                with open(file_path, 'rb') as f:
-                                    st.download_button(
-                                        label=f"💾 Save {doc_name}",
-                                        data=f.read(),
-                                        file_name=doc_name,
-                                        key=f"download_btn_{i}"
-                                    )
-                    else:
-                        st.error("Unable to download: File ID not available")
+                    st.error("Unable to download: File ID not available")
         
         with col4:
             if st.button("🔗 Share", key=f"share_{i}", use_container_width=True):
-                if demo_mode:
-                    demo_url = f"https://demo-documents.example.com/{doc_name}"
-                    st.success(f"**🔗 Demo Share Link:** {demo_url}")
+                if 'id' in doc:
+                    share_url = f"https://drive.google.com/file/d/{doc['id']}/view"
+                    st.success(f"**🔗 Google Drive Link:** {share_url}")
+                    st.code(share_url, language=None)
                 else:
-                    if 'id' in doc:
-                        share_url = f"https://drive.google.com/file/d/{doc['id']}/view"
-                        st.success(f"**🔗 Google Drive Link:** {share_url}")
-                        st.code(share_url, language=None)
-                    else:
-                        st.error("Unable to generate share link")
+                    st.error("Unable to generate share link")
         
         st.markdown("---")
 else:
     st.warning("📄 No documents found in the selected location.")
-    if not demo_mode:
-        st.info("💡 Try selecting a different folder or check if the folder contains any files.")
+    st.info("💡 Try selecting a different folder or check if the folder contains any files.")
 
 # Footer
 st.markdown("---")
