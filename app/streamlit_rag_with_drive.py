@@ -310,6 +310,53 @@ def extract_text_from_file(service, file_id, file_name):
         elif file_name.lower().endswith('.txt'):
             # Extract text from text file
             return file_content.decode('utf-8')
+            
+        elif file_name.lower().endswith(('.xlsx', '.xls')):
+            # Extract readable summary from Excel file
+            import pandas as pd
+            
+            try:
+                # Read Excel file
+                excel_file = pd.ExcelFile(io.BytesIO(file_content))
+                summary_parts = []
+                
+                summary_parts.append(f"Excel File: {file_name}")
+                summary_parts.append(f"Number of sheets: {len(excel_file.sheet_names)}")
+                summary_parts.append("Sheet contents:")
+                
+                # Process each sheet (limit to first 3 sheets for mobile)
+                for i, sheet_name in enumerate(excel_file.sheet_names[:3]):
+                    df = pd.read_excel(excel_file, sheet_name=sheet_name)
+                    
+                    summary_parts.append(f"\nSheet '{sheet_name}':")
+                    summary_parts.append(f"  - {df.shape[0]} rows, {df.shape[1]} columns")
+                    
+                    # Add column names
+                    if len(df.columns) > 0:
+                        columns = list(df.columns)[:5]  # First 5 columns
+                        summary_parts.append(f"  - Columns: {', '.join(str(col) for col in columns)}")
+                        if len(df.columns) > 5:
+                            summary_parts.append(f"    ... and {len(df.columns) - 5} more columns")
+                    
+                    # Add sample data from first few rows
+                    if not df.empty:
+                        summary_parts.append("  - Sample data:")
+                        for idx, row in df.head(3).iterrows():
+                            row_summary = []
+                            for col in df.columns[:3]:  # First 3 columns only
+                                value = str(row[col])[:30]  # Truncate long values
+                                if len(str(row[col])) > 30:
+                                    value += "..."
+                                row_summary.append(f"{col}: {value}")
+                            summary_parts.append(f"    Row {idx + 1}: {', '.join(row_summary)}")
+                
+                if len(excel_file.sheet_names) > 3:
+                    summary_parts.append(f"\n... and {len(excel_file.sheet_names) - 3} more sheets")
+                
+                return "\n".join(summary_parts)
+                
+            except Exception as excel_error:
+                return f"Excel file detected but could not be processed: {str(excel_error)}"
         
         else:
             return "Text extraction not supported for this file type."
