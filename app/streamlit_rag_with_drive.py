@@ -247,13 +247,11 @@ def get_all_folders_recursive(service, parent_id, parent_path=""):
 def list_files(service, folder_id):
     """List files in a specific folder"""
     try:
-        st.write(f"🔍 **DEBUG:** Calling list_files with folder_id: {folder_id}")
         results = service.files().list(
             q=f"'{folder_id}' in parents and trashed=false",
             fields="files(id, name, mimeType, modifiedTime, size)"
         ).execute()
         files = results.get('files', [])
-        st.write(f"🔍 **DEBUG:** Google Drive API returned {len(files)} files")
         return files
     except Exception as e:
         st.error(f"Error listing files: {str(e)}")
@@ -303,72 +301,25 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Voice input
-col1, col2 = st.columns([2, 1])
-
-with col1:
-    voice_input = st.text_input(
-        "🎤 Voice Search", 
-        placeholder="Tap here, then use your keyboard's voice button...",
-        help="On mobile: Tap here and use your keyboard's microphone button 🎤",
-        label_visibility="collapsed"
-    )
-
-with col2:
-    if st.button("📱 How to Voice Search", use_container_width=True):
-        st.info("""
-        **📱 Mobile Voice Search:**
-        
-        1. **Tap the search box** above
-        2. **Look for the microphone icon** on your mobile keyboard 🎤
-        3. **Tap the keyboard mic** and speak
-        4. **Your voice will be converted to text** automatically!
-        
-        **💡 Alternative:** Just type your search normally!
-        """)
+st.markdown("### 🎤 Voice Search")
+voice_input = st.text_input(
+    "🎤 Voice Search", 
+    placeholder="Tap here, then use your keyboard's voice button to search...",
+    help="💡 On mobile: Tap here and use your keyboard's microphone button",
+    label_visibility="collapsed"
+)
 
 # Voice status indicator
 if voice_input:
-    st.markdown(f"""
-    <div class="status-success">
-        🎤 <strong>Voice Input Detected:</strong> "{voice_input}"
-    </div>
-    """, unsafe_allow_html=True)
-
-# Text-to-Speech Section
-st.markdown("---")
-st.markdown("### 🔊 Text-to-Speech")
-st.info("""
-**💡 Pro Tip:** After generating document summaries, you can use your device's built-in text-to-speech:
-
-📱 **On Mobile:**
-- **iPhone:** Settings → Accessibility → Spoken Content → "Speak Selection"
-- **Android:** Settings → Accessibility → Text-to-speech
-
-🖥️ **On Desktop:**
-- **Windows:** Narrator (Windows key + Ctrl + Enter)
-- **Mac:** VoiceOver (Cmd + F5)
-- **Chrome:** Right-click text → "Read aloud" (if available)
-""")
+    st.success(f"🎤 Voice detected: **{voice_input}**")
 
 # Search interface
 st.markdown("### 🔍 Search Documents")
-col1, col2 = st.columns([1, 1])
-
-with col1:
-    filename_query = st.text_input(
-        "📄 Search by filename", 
-        placeholder="Type filename or use voice input above...", 
-        label_visibility="collapsed"
-    )
-
-with col2:
-    st.text_input(
-        "🔗 Combined Search", 
-        value=voice_input if voice_input else filename_query,
-        placeholder="Auto-filled from voice or text search...",
-        disabled=True,
-        label_visibility="collapsed"
-    )
+filename_query = st.text_input(
+    "📄 Search by filename", 
+    placeholder="Type filename to search...", 
+    label_visibility="collapsed"
+)
 
 # Use the combined search query
 active_query = voice_input if voice_input else filename_query
@@ -400,7 +351,7 @@ if not demo_mode and service:
             all_folders = get_all_folders_recursive(service, root_id)
         
         if all_folders:
-            st.success(f"📁 Found {len(all_folders)} folders in your Google Drive")
+            st.success(f"📁 Connected! Found {len(all_folders)} folders")
             
             # Filter out WMA Test and excluded paths
             excluded_names = ["WMA Test"]
@@ -422,17 +373,15 @@ if not demo_mode and service:
             main_folder_names = list(set([f['name'] for f in main_folders if '/' not in f['full_path']]))
             main_folder_names.sort()
             
+            # Folder Navigation
+            st.markdown("### 📁 Browse Your Folders")
+            
             # Step 1: Select main folder
-            st.markdown('<div class="nav-section">', unsafe_allow_html=True)
-            st.markdown('<div class="nav-title">📁 Step 1: Select Your Main Folder</div>', unsafe_allow_html=True)
-            
             selected_main_folder = st.selectbox(
-                "Choose main folder:", 
-                main_folder_names, 
-                label_visibility="collapsed"
+                "**Step 1:** Choose your folder", 
+                main_folder_names,
+                label_visibility="visible"
             )
-            
-            st.markdown('</div>', unsafe_allow_html=True)
             
             # Step 2: Get subfolders for selected main folder
             subfolders = [f for f in filtered_folders if f['full_path'].startswith(selected_main_folder + '/')]
@@ -442,38 +391,28 @@ if not demo_mode and service:
             selected_folder_path = selected_main_folder
             
             if level_1_subfolders:
-                st.markdown('<div class="nav-section">', unsafe_allow_html=True)
-                st.markdown('<div class="nav-title">📂 Step 2: Select Subfolder</div>', unsafe_allow_html=True)
-                
                 level_1_paths = [f['full_path'] for f in level_1_subfolders]
                 level_1_paths.sort()
                 
                 selected_level_1 = st.selectbox(
-                    "Choose subfolder:", 
-                    level_1_paths, 
-                    label_visibility="collapsed"
+                    "**Step 2:** Choose subfolder", 
+                    level_1_paths,
+                    label_visibility="visible"
                 )
-                
-                st.markdown('</div>', unsafe_allow_html=True)
                 
                 # Step 3: Get level 2 subfolders
                 level_2_subfolders = [f for f in filtered_folders if f['full_path'].startswith(selected_level_1 + '/')]
                 immediate_level_2 = [f for f in level_2_subfolders if f['full_path'].count('/') == 2]
                 
                 if immediate_level_2:
-                    st.markdown('<div class="nav-section">', unsafe_allow_html=True)
-                    st.markdown('<div class="nav-title">📋 Step 3: Select Final Folder</div>', unsafe_allow_html=True)
-                    
                     level_2_paths = [f['full_path'] for f in immediate_level_2]
                     level_2_paths.sort()
                     
                     selected_level_2 = st.selectbox(
-                        "Choose final folder:", 
-                        level_2_paths, 
-                        label_visibility="collapsed"
+                        "**Step 3:** Choose final folder", 
+                        level_2_paths,
+                        label_visibility="visible"
                     )
-                    
-                    st.markdown('</div>', unsafe_allow_html=True)
                     
                     selected_folder = next((f for f in immediate_level_2 if f['full_path'] == selected_level_2), None)
                     selected_folder_path = selected_level_2
@@ -487,26 +426,14 @@ if not demo_mode and service:
                 selected_folder_path = selected_main_folder
             
             if selected_folder:
-                st.write(f"🔍 **DEBUG:** Selected folder: {selected_folder['full_path']}")
-                st.write(f"🔍 **DEBUG:** Selected folder ID: {selected_folder['id']}")
-                
                 st.info(f"📂 Loading files from: {selected_folder['full_path']}")
                 
                 with st.spinner(f"🔄 Scanning {selected_folder['full_path']}..."):
                     docs = list_files(service, selected_folder['id'])
                 
-                st.write(f"🔍 **DEBUG:** Retrieved {len(docs)} documents from Google Drive")
-                
                 if docs:
                     st.success(f"📄 **Found {len(docs)} files in {selected_folder['name']}**")
                     demo_mode = False
-                    
-                    # Show first few file names for debugging
-                    st.write("🔍 **DEBUG:** First few files found:")
-                    for i, doc in enumerate(docs[:3]):
-                        st.write(f"  - {doc.get('name', 'Unknown')}")
-                        if i >= 2:
-                            break
                     
                 else:
                     st.warning(f"📄 No files found in {selected_folder['full_path']}. This folder appears to be empty.")
@@ -528,7 +455,7 @@ if not demo_mode and service:
         demo_mode = True
 else:
     # Demo mode
-    st.markdown('<div class="status-info">📁 <strong>Demo Mode:</strong> Showing sample documents</div>', unsafe_allow_html=True)
+    st.info("📁 **Demo Mode:** Showing sample documents")
     docs = demo_docs
 
 # Apply search filter
@@ -543,15 +470,13 @@ if active_query and docs:
 
 # Display results
 st.markdown("---")
-st.write(f"🔍 **DEBUG:** About to display {len(docs)} documents, demo_mode = {demo_mode}")
+st.markdown("### 📄 Documents")
 
 if docs:
     if demo_mode:
-        st.markdown('<div class="results-header">📊 Demo Documents</div>', unsafe_allow_html=True)
-        st.success(f"✅ Found {len(docs)} demo documents")
+        st.info(f"**Demo Mode:** Showing {len(docs)} sample documents")
     else:
-        st.markdown('<div class="results-header">📊 Your Google Drive Documents</div>', unsafe_allow_html=True)
-        st.success(f"✅ Found {len(docs)} documents from {selected_folder_path}")
+        st.success(f"**{len(docs)} documents** from **{selected_folder_path}**")
     
     # Display each document
     for i, doc in enumerate(docs):
