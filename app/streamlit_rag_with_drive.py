@@ -1076,7 +1076,7 @@ if docs:
         with col2:
             if st.button("🔊 Read", key=f"speak_{i}", use_container_width=True):
                 if demo_mode:
-                    # Demo text-to-speech
+                    # Demo text-to-speech using Streamlit components
                     demo_texts = [
                         "This AI Strategy presentation outlines our company's approach to implementing artificial intelligence across key business functions.",
                         "Q4 sales exceeded targets by 15% with strong enterprise performance and recurring revenue growth.",
@@ -1086,16 +1086,87 @@ if docs:
                         "Marketing campaign achieved strong ROI with excellent digital performance and engagement."
                     ]
                     demo_text = demo_texts[i % len(demo_texts)]
-                    speech_component = create_speech_component(demo_text, doc_name)
-                    st.markdown(speech_component, unsafe_allow_html=True)
+                    
+                    # Create a working speech component using Streamlit's method
+                    st.markdown(f"""
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 12px; margin: 1rem 0; color: white;">
+                        <h4 style="margin-top: 0; color: white;">🔊 Now Reading: {doc_name}</h4>
+                        <p style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 6px; font-style: italic; margin: 1rem 0;">
+                            "{demo_text}"
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Use Streamlit's HTML component with autoplay
+                    st.components.v1.html(f"""
+                    <script>
+                    // Wait for page to load then speak
+                    window.addEventListener('load', function() {{
+                        setTimeout(function() {{
+                            if ('speechSynthesis' in window) {{
+                                const utterance = new SpeechSynthesisUtterance(`{demo_text.replace('"', '\\"').replace("'", "\\'")}`);
+                                utterance.rate = 0.7;
+                                utterance.volume = 1.0;
+                                speechSynthesis.speak(utterance);
+                                
+                                // Show visual feedback
+                                document.body.style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
+                                document.body.style.color = 'white';
+                                document.body.style.padding = '20px';
+                                document.body.style.borderRadius = '10px';
+                                document.body.innerHTML = '<h3>🔊 Speaking: {doc_name}</h3><p>Audio is playing...</p>';
+                            }}
+                        }}, 500);
+                    }});
+                    </script>
+                    <div style="background: #28a745; color: white; padding: 10px; text-align: center; border-radius: 5px;">
+                        🔊 Audio Starting... (You should hear the text being read aloud)
+                    </div>
+                    """, height=100)
+                    
                 else:
                     # Real document text-to-speech
                     if 'id' in doc:
                         with st.spinner("Extracting text for speech..."):
                             file_text = extract_text_from_file(service, doc['id'], doc_name)
                             if file_text and not file_text.startswith("Error"):
-                                speech_component = create_speech_component(file_text, doc_name)
-                                st.markdown(speech_component, unsafe_allow_html=True)
+                                # Get first 300 characters for speech
+                                speech_text = file_text[:300] + "..." if len(file_text) > 300 else file_text
+                                clean_text = speech_text.replace('"', '\\"').replace("'", "\\'").replace('\n', ' ')
+                                
+                                st.markdown(f"""
+                                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 12px; margin: 1rem 0; color: white;">
+                                    <h4 style="margin-top: 0; color: white;">🔊 Now Reading: {doc_name}</h4>
+                                    <p style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 6px; font-style: italic; margin: 1rem 0;">
+                                        "{speech_text}"
+                                    </p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                
+                                # Use Streamlit's HTML component for real text
+                                st.components.v1.html(f"""
+                                <script>
+                                window.addEventListener('load', function() {{
+                                    setTimeout(function() {{
+                                        if ('speechSynthesis' in window) {{
+                                            const utterance = new SpeechSynthesisUtterance(`{clean_text}`);
+                                            utterance.rate = 0.7;
+                                            utterance.volume = 1.0;
+                                            speechSynthesis.speak(utterance);
+                                            
+                                            document.body.style.background = 'linear-gradient(45deg, #28a745, #20c997)';
+                                            document.body.style.color = 'white';
+                                            document.body.style.padding = '20px';
+                                            document.body.style.borderRadius = '10px';
+                                            document.body.innerHTML = '<h3>🔊 Reading: {doc_name}</h3><p>Playing document audio...</p>';
+                                        }}
+                                    }}, 500);
+                                }});
+                                </script>
+                                <div style="background: #28a745; color: white; padding: 10px; text-align: center; border-radius: 5px;">
+                                    🔊 Audio Starting... Playing document content
+                                </div>
+                                """, height=100)
                             else:
                                 st.error("Unable to extract text for speech synthesis")
                     else:
