@@ -317,94 +317,7 @@ def extract_text_from_file(service, file_id, file_name):
     except Exception as e:
         return f"Error extracting text: {str(e)}"
 
-def create_elevenlabs_audio(text, doc_name):
-    """Create ultra-natural speech using ElevenLabs API"""
-    
-    # For now, show instructions to set up ElevenLabs
-    st.markdown(f"""
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 12px; margin: 1rem 0; color: white;">
-        <h4 style="margin-top: 0; color: white;">🎙️ Ultra-Natural Voice Option: {doc_name}</h4>
-        <p style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 6px; margin: 1rem 0;">
-            "{text[:200]}..."
-        </p>
-        <div style="background: rgba(255,255,255,0.15); padding: 1rem; border-radius: 8px; margin: 1rem 0;">
-            <h5>🚀 Want TRULY Natural Voice?</h5>
-            <p><strong>ElevenLabs AI Voice</strong> - Sounds completely human!</p>
-            <ul style="margin: 0.5rem 0;">
-                <li>📈 <strong>Cost:</strong> $5/month for 30K characters</li>
-                <li>🎭 <strong>Quality:</strong> Indistinguishable from human speech</li>
-                <li>⚡ <strong>Setup:</strong> 5-minute API integration</li>
-                <li>🎯 <strong>Perfect for:</strong> Professional automotive presentations</li>
-            </ul>
-            <p style="margin-top: 1rem;"><strong>For your patent demo, this would be INCREDIBLE!</strong></p>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Add button to use current voice or upgrade prompt
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        if st.button("🔊 Use Current Voice", key=f"current_voice_{doc_name}", use_container_width=True):
-            return True  # Trigger current speech system
-    
-    with col2:
-        if st.button("🚀 Get ElevenLabs Setup Guide", key=f"elevenlabs_guide_{doc_name}", use_container_width=True):
-            st.markdown("""
-            ## 🎙️ ElevenLabs Integration Guide
-            
-            **Step 1:** Go to [ElevenLabs.io](https://elevenlabs.io)
-            **Step 2:** Sign up for $5/month plan
-            **Step 3:** Get your API key
-            **Step 4:** Add to Streamlit secrets:
-            ```toml
-            [elevenlabs]
-            api_key = "your_api_key_here"
-            ```
-            **Step 5:** I'll update the code to use ElevenLabs!
-            
-            **Result:** Human-quality voice that will WOW your patent demo! 🎯
-            """)
-    
-    return False
-
-# Alternative: Better browser voice selection for immediate improvement
-def get_best_available_voice():
-    """Get the absolute best voice available on the current system"""
-    return """
-    <script>
-    // Ultra-premium voice hunting
-    function findUltraBestVoice() {
-        const voices = speechSynthesis.getVoices();
-        
-        // Tier 1: Neural/AI voices (best available)
-        const tier1 = voices.filter(v => 
-            v.name.toLowerCase().includes('neural') ||
-            v.name.toLowerCase().includes('wavenet') ||
-            v.name.toLowerCase().includes('enhanced') && v.lang.includes('en-US')
-        );
-        
-        // Tier 2: Premium system voices
-        const tier2 = voices.filter(v => 
-            (v.name.includes('Zira') || v.name.includes('David') || 
-             v.name.includes('Samantha') || v.name.includes('Alex')) &&
-            v.lang.includes('en')
-        );
-        
-        // Tier 3: Any decent English voice
-        const tier3 = voices.filter(v => 
-            v.lang.includes('en-US') && !v.name.toLowerCase().includes('compact')
-        );
-        
-        return tier1[0] || tier2[0] || tier3[0] || voices[0];
-    }
-    
-    const bestVoice = findUltraBestVoice();
-    console.log('Selected ultra-premium voice:', bestVoice?.name);
-    
-    return bestVoice;
-    </script>
-    """
+def smart_text_truncate(text, max_length=500):
     """Intelligently truncate text at sentence boundaries for natural speech"""
     if not text or len(text) <= max_length:
         return text
@@ -650,184 +563,71 @@ if st.button("🔄 Clear Cache & Reload Folders"):
     st.session_state.folder_cache_time = None
     st.rerun()
 
-# Enhanced voice input with mobile-first design
+# Voice input with enhanced voice command processing
 st.markdown("### 🎤 Voice Commands")
 
-# Mobile-optimized voice interface
-col1, col2 = st.columns([3, 1])
-
-with col1:
-    # Always-listening activation phrase
+# Voice command help
+with st.expander("🎯 Voice Command Examples"):
     st.markdown("""
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 15px; color: white; margin: 1rem 0;">
-        <h4 style="margin: 0; color: white;">🚗 Hands-Free Voice Commands</h4>
-        <p style="margin: 0.5rem 0; font-size: 18px;"><strong>Just say:</strong></p>
-        <div style="background: rgba(255,255,255,0.2); padding: 1rem; border-radius: 10px; margin: 1rem 0;">
-            <p style="margin: 0; font-size: 16px;"><strong>"Hey Assistant, summarize [filename]"</strong></p>
-            <p style="margin: 0; font-size: 16px;"><strong>"Hey Assistant, read [document]"</strong></p>
-            <p style="margin: 0; font-size: 16px;"><strong>"Hey Assistant, find [topic]"</strong></p>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with col2:
-    # Large mobile-friendly microphone button
-    if st.button("🎤", key="big_mic_button", use_container_width=True, help="Tap to start voice command"):
-        st.components.v1.html("""
-        <div style="text-align: center; padding: 20px;">
-            <div id="listening-status" style="
-                background: linear-gradient(45deg, #ff6b6b, #ee5a24);
-                color: white;
-                padding: 15px;
-                border-radius: 50px;
-                font-size: 18px;
-                font-weight: bold;
-                animation: pulse 1.5s infinite;
-            ">🎤 LISTENING...</div>
-        </div>
-        
-        <style>
-        @keyframes pulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.1); opacity: 0.7; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-        </style>
-        
-        <script>
-        // Mobile-optimized speech recognition
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            const recognition = new SpeechRecognition();
-            
-            recognition.continuous = false;
-            recognition.interimResults = false;
-            recognition.lang = 'en-US';
-            
-            recognition.onstart = function() {
-                document.getElementById('listening-status').innerHTML = '🎤 LISTENING... Speak now!';
-                document.getElementById('listening-status').style.background = 'linear-gradient(45deg, #00d2ff, #3a7bd5)';
-            };
-            
-            recognition.onresult = function(event) {
-                const command = event.results[0][0].transcript.toLowerCase();
-                document.getElementById('listening-status').innerHTML = '✅ Command: "' + command + '"';
-                document.getElementById('listening-status').style.background = 'linear-gradient(45deg, #56ab2f, #a8e6cf)';
-                
-                // Process the voice command
-                processVoiceCommand(command);
-            };
-            
-            recognition.onerror = function(event) {
-                document.getElementById('listening-status').innerHTML = '❌ Error: ' + event.error;
-                document.getElementById('listening-status').style.background = 'linear-gradient(45deg, #ff6b6b, #ee5a24)';
-            };
-            
-            recognition.onend = function() {
-                setTimeout(() => {
-                    document.getElementById('listening-status').innerHTML = '👆 Tap microphone to try again';
-                    document.getElementById('listening-status').style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
-                }, 3000);
-            };
-            
-            function processVoiceCommand(command) {
-                // Enhanced command processing for automotive use
-                let action = null;
-                let searchTerm = null;
-                
-                // Remove activation phrases
-                command = command.replace(/hey assistant,?/gi, '').trim();
-                command = command.replace(/hey wma,?/gi, '').trim();
-                
-                // More natural command recognition
-                if (command.includes('summarize') || command.includes('summary') || 
-                    command.includes('tell me about') || command.includes('what is')) {
-                    action = 'summarize';
-                } else if (command.includes('read') || command.includes('play') || 
-                          command.includes('speak') || command.includes('listen to')) {
-                    action = 'read';
-                } else if (command.includes('find') || command.includes('search') || 
-                          command.includes('show me') || command.includes('get me')) {
-                    action = 'find';
-                }
-                
-                // Extract the document/topic
-                const removeWords = ['summarize', 'summary', 'read', 'play', 'speak', 'find', 
-                                   'search', 'show', 'me', 'the', 'file', 'document', 'about', 'on'];
-                let words = command.split(' ');
-                searchTerm = words.filter(word => 
-                    !removeWords.includes(word.toLowerCase())
-                ).join(' ').trim();
-                
-                if (action && searchTerm) {
-                    document.getElementById('listening-status').innerHTML = 
-                        '🎯 Command: ' + action + ' "' + searchTerm + '"<br>' +
-                        '<small>Processing your request...</small>';
-                    
-                    // Store command for processing (would trigger Streamlit rerun)
-                    sessionStorage.setItem('voiceCommand', JSON.stringify({
-                        action: action,
-                        searchTerm: searchTerm,
-                        timestamp: Date.now()
-                    }));
-                    
-                    // Trigger page refresh to process command
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 2000);
-                } else {
-                    document.getElementById('listening-status').innerHTML = 
-                        '❓ Couldn\'t understand command<br>' +
-                        '<small>Try: "Summarize [filename]" or "Read [document]"</small>';
-                }
-            }
-            
-            // Start listening immediately
-            recognition.start();
-            
-        } else {
-            document.getElementById('listening-status').innerHTML = 
-                '❌ Speech recognition not supported<br>' +
-                '<small>Please use Chrome or Edge browser</small>';
-        }
-        </script>
-        """, height=150)
-
-# Enhanced voice command examples for automotive use
-with st.expander("🚗 Voice Commands for Driving"):
-    st.markdown("""
-    **🎯 Perfect for CarPlay/Android Auto:**
+    **🚗 Hands-Free Commands:**
+    - *"Summarize the Chat AI file"*
+    - *"Read me the Impel document"* 
+    - *"Find and summarize automotive platform"*
+    - *"Review the FAQ handout"*
     
-    **📋 DOCUMENT COMMANDS:**
-    - *"Hey Assistant, summarize the Chat AI handout"*
-    - *"Hey Assistant, read the Impel comparison"*
-    - *"Hey Assistant, find automotive platform docs"*
-    
-    **🚗 DEALER-SPECIFIC:**
-    - *"Hey Assistant, show me AutoNation reports"*
-    - *"Hey Assistant, read dealer inventory"*
-    - *"Hey Assistant, find sales presentations"*
-    
-    **💡 TIPS:**
-    - Works with **Bluetooth** in your car
-    - **Hands-free** operation while driving
-    - **Voice feedback** confirms your commands
-    - Works with **Siri/Google Assistant** activation
+    **📱 How to Use:**
+    1. **Tap the voice box** below
+    2. **Use your keyboard's mic** button 🎤
+    3. **Speak your command** clearly
+    4. **App will auto-execute** the command
     """)
 
-# Process stored voice commands from mobile
-if 'voiceCommand' not in st.session_state:
-    st.session_state.voiceCommand = None
+voice_input = st.text_input(
+    "🎤 Voice Command", 
+    placeholder="Say: 'Summarize the Chat AI file' or 'Read me the automotive platform document'",
+    help="💡 Speak commands like 'summarize [filename]' or 'read [filename]'",
+    label_visibility="collapsed"
+)
 
-# Check for voice command from mobile interface
-try:
-    # This would be populated by the mobile voice interface
-    stored_command = st.session_state.get('mobile_voice_command', None)
-    if stored_command:
-        st.session_state.voiceCommand = stored_command
-        st.session_state.mobile_voice_command = None  # Clear after processing
-except:
-    pass
+# Process voice commands
+if voice_input:
+    st.success(f"🎤 Voice command: **{voice_input}**")
+    
+    # Parse voice command
+    command_lower = voice_input.lower()
+    
+    # Extract action and filename
+    action = None
+    search_term = None
+    
+    if any(word in command_lower for word in ['summarize', 'summary', 'review', 'tell me about', 'what is']):
+        action = 'summarize'
+    elif any(word in command_lower for word in ['read', 'read back', 'read to me', 'play', 'speak']):
+        action = 'read'
+    elif any(word in command_lower for word in ['find', 'search', 'show', 'look for', 'get me']):
+        action = 'find'
+    
+    # Extract search terms (remove command words)
+    search_words = command_lower
+    for remove_word in ['summarize', 'summary', 'review', 'read', 'back', 'to', 'me', 'the', 'file', 'on', 'about', 'find', 'search', 'show', 'and']:
+        search_words = search_words.replace(remove_word, ' ')
+    
+    search_term = ' '.join(search_words.split()).strip()
+    
+    if action and search_term:
+        st.info(f"🎯 **Command understood:** {action.title()} documents matching '{search_term}'")
+        
+        # Store voice command in session state for processing later
+        if 'voice_command' not in st.session_state:
+            st.session_state.voice_command = {}
+        
+        st.session_state.voice_command = {
+            'action': action,
+            'search_term': search_term,
+            'original_command': voice_input
+        }
+    else:
+        st.warning("🤔 Command not understood. Try: 'Summarize [filename]' or 'Read [filename]'")
 
 # Search interface
 st.markdown("### 🔍 Search Documents")
