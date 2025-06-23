@@ -1,4 +1,19 @@
-import os
+def download_file(service, file_id, name):
+    """Download a file from Google Drive"""
+    try:
+        request = service.files().get_media(fileId=file_id)
+        fh = io.BytesIO()
+        downloader = MediaIoBaseDownload(fh, request)
+        done = False
+        while not done:
+            _, done = downloader.next_chunk()
+        path = os.path.join(DOCS_DIR, name)
+        with open(path, 'wb') as f:
+            f.write(fh.getvalue())
+        return path
+    except Exception as e:
+        st.error(f"Error downloading file: {str(e)}")
+        return Noneimport os
 import io
 import fitz  # PyMuPDF
 from docx import Document as DocxDoc
@@ -257,22 +272,128 @@ def list_files(service, folder_id):
         st.error(f"Error listing files: {str(e)}")
         return []
 
-def download_file(service, file_id, name):
-    """Download a file from Google Drive"""
+def extract_text_from_file(service, file_id, file_name):
+    """Extract text content from a Google Drive file"""
     try:
+        # Download the file
         request = service.files().get_media(fileId=file_id)
         fh = io.BytesIO()
         downloader = MediaIoBaseDownload(fh, request)
         done = False
         while not done:
             _, done = downloader.next_chunk()
-        path = os.path.join(DOCS_DIR, name)
-        with open(path, 'wb') as f:
-            f.write(fh.getvalue())
-        return path
+        
+        # Extract text based on file type
+        file_content = fh.getvalue()
+        
+        if file_name.lower().endswith('.pdf'):
+            # Extract text from PDF
+            pdf_doc = fitz.open(stream=file_content, filetype="pdf")
+            text = ""
+            for page in pdf_doc:
+                text += page.get_text() + "\n"
+            pdf_doc.close()
+            return text
+            
+        elif file_name.lower().endswith('.docx'):
+            # Extract text from Word document
+            doc = DocxDoc(io.BytesIO(file_content))
+            text = "\n".join([paragraph.text for paragraph in doc.paragraphs])
+            return text
+            
+        elif file_name.lower().endswith('.txt'):
+            # Extract text from text file
+            return file_content.decode('utf-8')
+        
+        else:
+            return "Text extraction not supported for this file type."
+            
     except Exception as e:
-        st.error(f"Error downloading file: {str(e)}")
-        return None
+        return f"Error extracting text: {str(e)}"
+
+def create_speech_component(text, doc_name):
+    """Create a text-to-speech component"""
+    # Truncate text for speech (first 500 characters)
+    speech_text = text[:500] + "..." if len(text) > 500 else text
+    
+    # Clean text for speech (remove special characters)
+    import re
+    clean_text = re.sub(r'[^\w\s.,!?-]', ' ', speech_text)
+    clean_text = re.sub(r'\s+', ' ', clean_text).strip()
+    
+    # Create HTML for speech synthesis
+    speech_html = f"""
+    <div style="background: #f0f8ff; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+        <h4>🔊 Now Reading: {doc_name}</h4>
+        <p style="font-style: italic; color: #666;">"{clean_text}"</p>
+        <button onclick="speakText()" style="
+            background: linear-gradient(45deg, #56ab2f, #a8e6cf);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 0.5rem;
+        ">▶️ Play</button>
+        <button onclick="stopSpeech()" style="
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 0.5rem;
+        ">⏹️ Stop</button>
+        <button onclick="pauseSpeech()" style="
+            background: #ffa726;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+        ">⏸️ Pause</button>
+    </div>
+    
+    <script>
+    let utterance;
+    
+    function speakText() {{
+        if ('speechSynthesis' in window) {{
+            // Stop any ongoing speech
+            window.speechSynthesis.cancel();
+            
+            // Create new utterance
+            utterance = new SpeechSynthesisUtterance(`{clean_text}`);
+            utterance.rate = 0.9;
+            utterance.pitch = 1;
+            utterance.volume = 1;
+            
+            // Speak the text
+            window.speechSynthesis.speak(utterance);
+        }} else {{
+            alert('Text-to-speech not supported in this browser');
+        }}
+    }}
+    
+    function stopSpeech() {{
+        if ('speechSynthesis' in window) {{
+            window.speechSynthesis.cancel();
+        }}
+    }}
+    
+    function pauseSpeech() {{
+        if ('speechSynthesis' in window) {{
+            if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {{
+                window.speechSynthesis.pause();
+            }} else if (window.speechSynthesis.paused) {{
+                window.speechSynthesis.resume();
+            }}
+        }}
+    }}
+    </script>
+    """
+    
+    return speech_html
 
 # Demo documents for fallback
 demo_docs = [
@@ -300,18 +421,71 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Voice input
-st.markdown("### 🎤 Voice Search")
+# Voice input with enhanced voice command processing
+st.markdown("### 🎤 Voice Commands")
+
+# Voice command help
+with st.expander("🎯 Voice Command Examples"):
+    st.markdown("""
+    **🚗 Hands-Free Commands:**
+    - *"Summarize the Chat AI file"*
+    - *"Read me the Impel document"* 
+    - *"Find and summarize automotive platform"*
+    - *"Review the FAQ handout"*
+    
+    **📱 How to Use:**
+    1. **Tap the voice box** below
+    2. **Use your keyboard's mic** button 🎤
+    3. **Speak your command** clearly
+    4. **App will auto-execute** the command
+    """)
+
 voice_input = st.text_input(
-    "🎤 Voice Search", 
-    placeholder="Tap here, then use your keyboard's voice button to search...",
-    help="💡 On mobile: Tap here and use your keyboard's microphone button",
+    "🎤 Voice Command", 
+    placeholder="Say: 'Summarize the Chat AI file' or 'Read me the automotive platform document'",
+    help="💡 Speak commands like 'summarize [filename]' or 'read [filename]'",
     label_visibility="collapsed"
 )
 
-# Voice status indicator
+# Process voice commands
 if voice_input:
-    st.success(f"🎤 Voice detected: **{voice_input}**")
+    st.success(f"🎤 Voice command: **{voice_input}**")
+    
+    # Parse voice command
+    command_lower = voice_input.lower()
+    
+    # Extract action and filename
+    action = None
+    search_term = None
+    
+    if any(word in command_lower for word in ['summarize', 'summary', 'review']):
+        action = 'summarize'
+    elif any(word in command_lower for word in ['read', 'read back', 'read to me']):
+        action = 'read'
+    elif any(word in command_lower for word in ['find', 'search', 'show']):
+        action = 'find'
+    
+    # Extract search terms (remove command words)
+    search_words = command_lower
+    for remove_word in ['summarize', 'summary', 'review', 'read', 'back', 'to', 'me', 'the', 'file', 'on', 'about', 'find', 'search', 'show', 'and']:
+        search_words = search_words.replace(remove_word, ' ')
+    
+    search_term = ' '.join(search_words.split()).strip()
+    
+    if action and search_term:
+        st.info(f"🎯 **Command understood:** {action.title()} documents matching '{search_term}'")
+        
+        # Store voice command in session state for processing later
+        if 'voice_command' not in st.session_state:
+            st.session_state.voice_command = {}
+        
+        st.session_state.voice_command = {
+            'action': action,
+            'search_term': search_term,
+            'original_command': voice_input
+        }
+    else:
+        st.warning("🤔 Command not understood. Try: 'Summarize [filename]' or 'Read [filename]'")
 
 # Search interface
 st.markdown("### 🔍 Search Documents")
@@ -373,57 +547,84 @@ if not demo_mode and service:
             main_folder_names = list(set([f['name'] for f in main_folders if '/' not in f['full_path']]))
             main_folder_names.sort()
             
-            # Folder Navigation
-            st.markdown("### 📁 Browse Your Folders")
+            # Folder Navigation with Security
+            st.markdown("### 👤 User Identity")
             
-            # Step 1: Select main folder
-            selected_main_folder = st.selectbox(
-                "**Step 1:** Choose your folder", 
-                main_folder_names,
+            # Step 0: User Authentication
+            user_identity = st.selectbox(
+                "**Who are you?**",
+                ["Aaron", "Brody", "Dona", "Eric", "Grace", "Jeff", "Jessica", "Jill", "John", "Jon", "Kirk", "Owen", "Paul"],
                 label_visibility="visible"
             )
             
-            # Step 2: Get subfolders for selected main folder
-            subfolders = [f for f in filtered_folders if f['full_path'].startswith(selected_main_folder + '/')]
-            level_1_subfolders = [f for f in subfolders if f['full_path'].count('/') == 1]
+            st.markdown("### 📁 Browse Your Folders")
             
-            selected_folder = None
-            selected_folder_path = selected_main_folder
-            
-            if level_1_subfolders:
-                level_1_paths = [f['full_path'] for f in level_1_subfolders]
-                level_1_paths.sort()
+            # Filter folders based on user identity - security layer
+            if user_identity:
+                allowed_folders = [user_identity, "WMA Team"]  # User can see their own folder + shared WMA folders
                 
-                selected_level_1 = st.selectbox(
-                    "**Step 2:** Choose subfolder", 
-                    level_1_paths,
-                    label_visibility="visible"
-                )
+                # Filter main folders to only show allowed ones
+                accessible_main_folders = [name for name in main_folder_names if any(name.startswith(allowed) for allowed in allowed_folders)]
                 
-                # Step 3: Get level 2 subfolders
-                level_2_subfolders = [f for f in filtered_folders if f['full_path'].startswith(selected_level_1 + '/')]
-                immediate_level_2 = [f for f in level_2_subfolders if f['full_path'].count('/') == 2]
-                
-                if immediate_level_2:
-                    level_2_paths = [f['full_path'] for f in immediate_level_2]
-                    level_2_paths.sort()
-                    
-                    selected_level_2 = st.selectbox(
-                        "**Step 3:** Choose final folder", 
-                        level_2_paths,
+                if not accessible_main_folders:
+                    st.error(f"No folders found for {user_identity}. Please contact your administrator.")
+                    docs = demo_docs
+                    demo_mode = True
+                else:
+                    # Step 1: Select main folder (filtered by user identity)
+                    selected_main_folder = st.selectbox(
+                        f"**Step 1:** Choose your folder (showing folders for {user_identity})", 
+                        accessible_main_folders,
                         label_visibility="visible"
                     )
-                    
-                    selected_folder = next((f for f in immediate_level_2 if f['full_path'] == selected_level_2), None)
-                    selected_folder_path = selected_level_2
-                else:
-                    # Use level 1 as final selection
-                    selected_folder = next((f for f in level_1_subfolders if f['full_path'] == selected_level_1), None)
-                    selected_folder_path = selected_level_1
-            else:
-                # Use main folder as final selection
-                selected_folder = next((f for f in main_folders if f['name'] == selected_main_folder and '/' not in f['full_path']), None)
-                selected_folder_path = selected_main_folder
+            
+                    # Step 2: Get subfolders for selected main folder (with security check)
+                    if selected_main_folder in accessible_main_folders:
+                        subfolders = [f for f in filtered_folders if f['full_path'].startswith(selected_main_folder + '/')]
+                        level_1_subfolders = [f for f in subfolders if f['full_path'].count('/') == 1]
+                        
+                        selected_folder = None
+                        selected_folder_path = selected_main_folder
+                        
+                        if level_1_subfolders:
+                            level_1_paths = [f['full_path'] for f in level_1_subfolders]
+                            level_1_paths.sort()
+                            
+                            selected_level_1 = st.selectbox(
+                                "**Step 2:** Choose subfolder", 
+                                level_1_paths,
+                                label_visibility="visible"
+                            )
+                            
+                            # Step 3: Get level 2 subfolders
+                            level_2_subfolders = [f for f in filtered_folders if f['full_path'].startswith(selected_level_1 + '/')]
+                            immediate_level_2 = [f for f in level_2_subfolders if f['full_path'].count('/') == 2]
+                            
+                            if immediate_level_2:
+                                level_2_paths = [f['full_path'] for f in immediate_level_2]
+                                level_2_paths.sort()
+                                
+                                selected_level_2 = st.selectbox(
+                                    "**Step 3:** Choose final folder", 
+                                    level_2_paths,
+                                    label_visibility="visible"
+                                )
+                                
+                                selected_folder = next((f for f in immediate_level_2 if f['full_path'] == selected_level_2), None)
+                                selected_folder_path = selected_level_2
+                            else:
+                                # Use level 1 as final selection
+                                selected_folder = next((f for f in level_1_subfolders if f['full_path'] == selected_level_1), None)
+                                selected_folder_path = selected_level_1
+                        else:
+                            # Use main folder as final selection
+                            selected_folder = next((f for f in main_folders if f['name'] == selected_main_folder and '/' not in f['full_path']), None)
+                            selected_folder_path = selected_main_folder
+                    else:
+                        st.error(f"🚫 Access denied: {user_identity} cannot access {selected_main_folder} folder")
+                        docs = demo_docs
+                        demo_mode = True
+                        selected_folder = None
             
             if selected_folder:
                 st.info(f"📂 Loading files from: {selected_folder['full_path']}")
@@ -510,7 +711,31 @@ if docs:
         
         with col2:
             if st.button("🔊 Read", key=f"speak_{i}", use_container_width=True):
-                st.info("💡 **Text-to-Speech:** Select any text above and use your device's built-in 'Speak' feature!")
+                if demo_mode:
+                    # Demo text-to-speech
+                    demo_texts = [
+                        "This AI Strategy presentation outlines our company's approach to implementing artificial intelligence across key business functions.",
+                        "Q4 sales exceeded targets by 15% with strong enterprise performance and recurring revenue growth.",
+                        "Customer analysis reveals significant increase in mobile app usage and improved satisfaction scores.",
+                        "2025 product roadmap focuses on user experience enhancements and AI-powered features.",
+                        "Team performance metrics show productivity improvement with new workflow optimizations.",
+                        "Marketing campaign achieved strong ROI with excellent digital performance and engagement."
+                    ]
+                    demo_text = demo_texts[i % len(demo_texts)]
+                    speech_component = create_speech_component(demo_text, doc_name)
+                    st.markdown(speech_component, unsafe_allow_html=True)
+                else:
+                    # Real document text-to-speech
+                    if 'id' in doc:
+                        with st.spinner("Extracting text for speech..."):
+                            file_text = extract_text_from_file(service, doc['id'], doc_name)
+                            if file_text and not file_text.startswith("Error"):
+                                speech_component = create_speech_component(file_text, doc_name)
+                                st.markdown(speech_component, unsafe_allow_html=True)
+                            else:
+                                st.error("Unable to extract text for speech synthesis")
+                    else:
+                        st.error("Unable to read file: File ID not available")
         
         with col3:
             if st.button("⬇️ Download", key=f"dl_{i}", use_container_width=True):
