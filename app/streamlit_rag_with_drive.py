@@ -222,15 +222,13 @@ def authenticate_gdrive():
         st.error(f"🚫 Authentication failed: {str(e)}")
         return None
 
-def get_all_folders_recursive(service, parent_id, parent_path="", max_depth=3):
-    """Recursively get folders with depth limit for speed"""
+def get_all_folders_recursive(service, parent_id, parent_path=""):
+    """Get ALL folders - no limits, full depth for business use"""
     folders = []
-    if parent_path.count('/') >= max_depth:  # Limit depth for speed
-        return folders
-        
+    
     try:
         query = f"'{parent_id}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-        results = service.files().list(q=query, fields="files(id, name)", pageSize=100).execute()  # Reduced page size
+        results = service.files().list(q=query, fields="files(id, name)", pageSize=1000).execute()
         items = results.get("files", [])
 
         for item in items:
@@ -240,9 +238,11 @@ def get_all_folders_recursive(service, parent_id, parent_path="", max_depth=3):
                 "name": item["name"],
                 "full_path": full_path
             })
-            # Only recurse for important folders to save time
-            if any(keyword in item['name'].lower() for keyword in ['wma', 'aaron', 'jeff', 'owen', 'team']):
-                folders.extend(get_all_folders_recursive(service, item["id"], full_path, max_depth))
+            
+            # FULL RECURSION - No limits for business requirements
+            subfolders = get_all_folders_recursive(service, item["id"], full_path)
+            folders.extend(subfolders)
+                
     except Exception as e:
         st.error(f"Error accessing folder {parent_path}: {str(e)}")
     
@@ -655,13 +655,82 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Voice Interface Section
+# Voice Interface Section with Audio Permission Request
 st.markdown("""
 <div class="voice-container">
     <h3 style="margin-top: 0;">🎙️ Voice Commands</h3>
     <p>Use the voice input below to search your documents</p>
 </div>
 """, unsafe_allow_html=True)
+
+# Audio permission and test section
+st.markdown("### 🔊 Audio Setup")
+col1, col2 = st.columns([1, 1])
+
+with col1:
+    if st.button("🔧 Test Audio System", use_container_width=True):
+        st.markdown("""
+        <script>
+        // Request audio permission and test
+        async function testAudioPermission() {
+            try {
+                // Test speech synthesis
+                if ('speechSynthesis' in window) {
+                    const testUtterance = new SpeechSynthesisUtterance('Audio test successful. Text to speech is working.');
+                    testUtterance.volume = 1;
+                    testUtterance.rate = 0.8;
+                    speechSynthesis.speak(testUtterance);
+                    
+                    // Show success message
+                    const statusDiv = document.createElement('div');
+                    statusDiv.style.cssText = 'background: #d4edda; padding: 10px; border-radius: 5px; margin: 10px 0; color: #155724;';
+                    statusDiv.innerHTML = '✅ Audio test started! You should hear "Audio test successful..."';
+                    document.body.appendChild(statusDiv);
+                    
+                    setTimeout(() => {
+                        if (statusDiv.parentNode) {
+                            statusDiv.parentNode.removeChild(statusDiv);
+                        }
+                    }, 5000);
+                    
+                } else {
+                    alert('Speech synthesis not supported in this browser. Try Chrome or Edge.');
+                }
+            } catch (error) {
+                alert('Audio test failed: ' + error.message);
+            }
+        }
+        
+        testAudioPermission();
+        </script>
+        """, unsafe_allow_html=True)
+
+with col2:
+    if st.button("📋 Audio Troubleshooting", use_container_width=True):
+        st.markdown("""
+        **🔧 If you can't hear audio:**
+        
+        1. **Check browser settings:**
+           - Chrome: Settings → Site Settings → Sound → Allow
+           - Edge: Settings → Site permissions → Sound → Allow
+        
+        2. **Try these steps:**
+           - Refresh the page
+           - Try an incognito/private window
+           - Check your system volume
+           - Try a different browser (Chrome works best)
+        
+        3. **Manual test:**
+           - Open browser console (F12)
+           - Type: `speechSynthesis.speak(new SpeechSynthesisUtterance("test"))`
+           - Press Enter
+        """)
+
+# Add clear folder cache button for troubleshooting
+if st.button("🔄 Clear Cache & Reload Folders"):
+    st.session_state.all_folders = None
+    st.session_state.folder_cache_time = None
+    st.rerun()
 
 # Voice input with enhanced voice command processing
 st.markdown("### 🎤 Voice Commands")
@@ -775,21 +844,21 @@ docs = []
 if not demo_mode and service:
     # Get all folders (with smart caching)
     try:
-        # Check if we need to refresh cache (5 minute expiry)
+        # Check if we need to refresh cache (20 minute expiry - balance between freshness and load time)
         import time
         current_time = time.time()
         cache_expired = (
             st.session_state.folder_cache_time is None or 
-            current_time - st.session_state.folder_cache_time > 300  # 5 minutes
+            current_time - st.session_state.folder_cache_time > 1200  # 20 minutes - longer cache for full load
         )
         
         if st.session_state.all_folders is None or cache_expired:
-            with st.spinner("🔄 Loading folder structure..."):
+            with st.spinner("📁 Loading complete folder structure (this may take 30-60 seconds for 38 dealers)..."):
                 st.session_state.all_folders = get_all_folders_recursive(service, root_id)
                 st.session_state.folder_cache_time = current_time
-                st.success(f"📁 Loaded {len(st.session_state.all_folders)} folders (cached)")
+                st.success(f"📁 Complete! Loaded {len(st.session_state.all_folders)} folders from all dealers")
         else:
-            st.info(f"📁 Using cached folders ({len(st.session_state.all_folders)} folders)")
+            st.info(f"📁 Using cached structure ({len(st.session_state.all_folders)} folders) - Refreshes every 20 minutes")
             
         all_folders = st.session_state.all_folders
         
