@@ -738,4 +738,171 @@ if not demo_mode and service:
                         # Double-check security: ensure user can access this folder
                         folder_owner = selected_folder['full_path'].split('/')[0]
                         if folder_owner in allowed_folders or any(selected_folder['full_path'].startswith(allowed) for allowed in allowed_folders):
-                            with st.spinner
+                            with st.spinner(f"Loading files from {selected_folder['name']}..."):
+                                docs = list_files(service, selected_folder['id'])
+                            
+                            if docs:
+                                st.success(f"📄 Found **{len(docs)}** files in **{selected_folder['name']}**")
+                                demo_mode = False
+                            else:
+                                st.warning(f"No files found in {selected_folder['full_path']}. Folder appears to be empty.")
+                                st.info("Showing demo documents instead.")
+                                docs = demo_docs
+                                demo_mode = True
+                        else:
+                            st.error(f"🚫 Security violation: {user_identity} attempted to access unauthorized folder {selected_folder['full_path']}")
+                            docs = demo_docs
+                            demo_mode = True
+                    else:
+                        st.warning("Please select a folder to view its contents.")
+                        docs = demo_docs
+                        demo_mode = True
+            else:
+                st.warning("Please select your identity to continue.")
+                docs = demo_docs
+                demo_mode = True
+        else:
+            st.warning("No folders found in Google Drive. Showing demo documents.")
+            docs = demo_docs
+            demo_mode = True
+            
+    except Exception as e:
+        st.error(f"Error loading Google Drive folders: {str(e)}")
+        docs = demo_docs
+        demo_mode = True
+else:
+    # Demo mode
+    st.info("📁 **Demo Mode:** Showing sample documents")
+    docs = demo_docs
+
+# Process voice commands if any
+if docs:
+    process_voice_command(docs, service if not demo_mode else None, demo_mode)
+
+# Apply search filter
+if active_query and docs:
+    original_count = len(docs)
+    filtered_docs = [doc for doc in docs if active_query.lower() in doc["name"].lower()]
+    if filtered_docs:
+        docs = filtered_docs
+        st.info(f"🔍 **Search Results:** Found {len(docs)} documents matching '{active_query}' (out of {original_count} total)")
+    else:
+        st.warning(f"❌ No documents found matching '{active_query}' in the selected folder")
+
+# Display results
+st.markdown("---")
+st.markdown("### 📄 Documents")
+
+if docs:
+    if demo_mode:
+        st.info(f"**Demo Mode:** Showing {len(docs)} sample documents")
+    else:
+        st.success(f"**{len(docs)} documents** from **{selected_folder_path}**")
+    
+    # Display each document
+    for i, doc in enumerate(docs):
+        doc_name = doc.get('name', 'Unknown Document')
+        
+        st.markdown(f"""
+        <div class="file-card">
+            <div class="file-name">📄 {doc_name}</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Action buttons
+        col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
+        
+        with col1:
+            if st.button("📖 Summary", key=f"sum_{i}", use_container_width=True):
+                if demo_mode:
+                    # Demo summaries
+                    demo_summaries = [
+                        "This AI Strategy presentation outlines our company's approach to implementing artificial intelligence across key business functions. It covers market trends, competitive analysis, and a 3-year AI adoption roadmap.",
+                        "Q4 sales exceeded targets by 15% with strong enterprise performance. Key highlights include 23% growth in recurring revenue and successful premium tier launch.",
+                        "Customer analysis reveals 45% increase in mobile app usage. Demographics show growth in 25-34 age segment with improved satisfaction scores.",
+                        "2025 product roadmap focuses on user experience enhancements, AI-powered features, and platform scalability with major Q2 and Q4 releases.",
+                        "Team performance metrics show 12% productivity improvement with new workflow optimizations. Employee satisfaction reached 4.6/5.",
+                        "Marketing campaign achieved 3.2x ROI with strong digital performance. Email open rates at 28%, social engagement up 67%."
+                    ]
+                    summary = demo_summaries[i % len(demo_summaries)]
+                    st.success(f"**📋 AI Summary:** {summary}")
+                else:
+                    st.success(f"**📋 Real Document Analysis:** This would analyze '{doc_name}' from your Google Drive folder '{selected_folder_path}' using AI!")
+        
+        with col2:
+            if st.button("🔊 Read", key=f"speak_{i}", use_container_width=True):
+                if demo_mode:
+                    # Demo text-to-speech
+                    demo_texts = [
+                        "This AI Strategy presentation outlines our company's approach to implementing artificial intelligence across key business functions.",
+                        "Q4 sales exceeded targets by 15% with strong enterprise performance and recurring revenue growth.",
+                        "Customer analysis reveals significant increase in mobile app usage and improved satisfaction scores.",
+                        "2025 product roadmap focuses on user experience enhancements and AI-powered features.",
+                        "Team performance metrics show productivity improvement with new workflow optimizations.",
+                        "Marketing campaign achieved strong ROI with excellent digital performance and engagement."
+                    ]
+                    demo_text = demo_texts[i % len(demo_texts)]
+                    speech_component = create_speech_component(demo_text, doc_name)
+                    st.markdown(speech_component, unsafe_allow_html=True)
+                else:
+                    # Real document text-to-speech
+                    if 'id' in doc:
+                        with st.spinner("Extracting text for speech..."):
+                            file_text = extract_text_from_file(service, doc['id'], doc_name)
+                            if file_text and not file_text.startswith("Error"):
+                                speech_component = create_speech_component(file_text, doc_name)
+                                st.markdown(speech_component, unsafe_allow_html=True)
+                            else:
+                                st.error("Unable to extract text for speech synthesis")
+                    else:
+                        st.error("Unable to read file: File ID not available")
+        
+        with col3:
+            if st.button("⬇️ Download", key=f"dl_{i}", use_container_width=True):
+                if demo_mode:
+                    st.success(f"✅ **Demo Download:** In production, {doc_name} would download from Google Drive!")
+                else:
+                    # Real download functionality
+                    if 'id' in doc:
+                        with st.spinner("Downloading..."):
+                            file_path = download_file(service, doc['id'], doc_name)
+                            if file_path:
+                                st.success(f"✅ **Downloaded:** {doc_name}")
+                                with open(file_path, 'rb') as f:
+                                    st.download_button(
+                                        label=f"💾 Save {doc_name}",
+                                        data=f.read(),
+                                        file_name=doc_name,
+                                        key=f"download_btn_{i}"
+                                    )
+                    else:
+                        st.error("Unable to download: File ID not available")
+        
+        with col4:
+            if st.button("🔗 Share", key=f"share_{i}", use_container_width=True):
+                if demo_mode:
+                    demo_url = f"https://demo-documents.example.com/{doc_name}"
+                    st.success(f"**🔗 Demo Share Link:** {demo_url}")
+                else:
+                    if 'id' in doc:
+                        share_url = f"https://drive.google.com/file/d/{doc['id']}/view"
+                        st.success(f"**🔗 Google Drive Link:** {share_url}")
+                        st.code(share_url, language=None)
+                    else:
+                        st.error("Unable to generate share link")
+        
+        st.markdown("---")
+else:
+    st.warning("📄 No documents found in the selected location.")
+    if not demo_mode:
+        st.info("💡 Try selecting a different folder or check if the folder contains any files.")
+
+# Footer
+st.markdown("---")
+st.markdown("""
+<div style='text-align: center; color: #666; font-size: 0.9rem; padding: 1rem;'>
+    🎤 Voice-Powered Smart Document Assistant<br>
+    Powered by AI • Built for productivity • Voice-enabled<br>
+    <small>💡 Tip: Use Chrome or Edge for best voice experience</small>
+</div>
+""", unsafe_allow_html=True)
