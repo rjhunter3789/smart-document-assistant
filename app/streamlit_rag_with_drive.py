@@ -317,241 +317,7 @@ def extract_text_from_file(service, file_id, file_name):
     except Exception as e:
         return f"Error extracting text: {str(e)}"
 
-def create_speech_component(text, doc_name):
-    """Create a text-to-speech component with multiple fallback methods"""
-    # Truncate text for speech (first 300 characters for better compatibility)
-    speech_text = text[:300] + "..." if len(text) > 300 else text
-    
-    # Clean text for speech (remove special characters)
-    import re
-    clean_text = re.sub(r'[^\w\s.,!?-]', ' ', speech_text)
-    clean_text = re.sub(r'\s+', ' ', clean_text).strip()
-    
-    # Escape quotes and special characters for JavaScript
-    js_safe_text = clean_text.replace('"', '\\"').replace("'", "\\'").replace('\n', ' ')
-    
-    # Generate unique ID for this speech component
-    import random
-    component_id = f"speech_{random.randint(1000, 9999)}"
-    
-    # Create HTML for speech synthesis with multiple methods
-    speech_html = f"""
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 12px; margin: 1rem 0; color: white;">
-        <h4 style="margin-top: 0; color: white;">🔊 Audio Player: {doc_name}</h4>
-        <p style="background: rgba(255,255,255,0.1); padding: 0.8rem; border-radius: 6px; font-style: italic; margin: 1rem 0;">
-            "{clean_text}"
-        </p>
-        <div style="margin: 1rem 0;">
-            <button id="play_{component_id}" onclick="playAudio_{component_id}()" style="
-                background: #28a745; color: white; border: none; padding: 0.8rem 1.5rem; 
-                border-radius: 8px; cursor: pointer; margin-right: 0.5rem; font-weight: bold; font-size: 16px;
-            ">🔊 PLAY AUDIO</button>
-            
-            <button onclick="stopAudio_{component_id}()" style="
-                background: #dc3545; color: white; border: none; padding: 0.8rem 1.5rem; 
-                border-radius: 8px; cursor: pointer; margin-right: 0.5rem; font-weight: bold; font-size: 16px;
-            ">⏹️ STOP</button>
-            
-            <button onclick="testSystem_{component_id}()" style="
-                background: #ffc107; color: black; border: none; padding: 0.8rem 1.5rem; 
-                border-radius: 8px; cursor: pointer; margin-right: 0.5rem; font-weight: bold; font-size: 16px;
-            ">🔧 TEST</button>
-            
-            <button onclick="forcePlay_{component_id}()" style="
-                background: #17a2b8; color: white; border: none; padding: 0.8rem 1.5rem; 
-                border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px;
-            ">🚀 FORCE PLAY</button>
-        </div>
-        <div id="status_{component_id}" style="
-            background: rgba(255,255,255,0.2); padding: 0.8rem; border-radius: 6px; 
-            margin-top: 1rem; font-size: 14px; font-weight: bold;
-        ">Click PLAY AUDIO to start...</div>
-    </div>
-    
-    <script>
-    console.log('Audio component {component_id} initialized');
-    
-    // Multiple speech variables
-    let utterance_{component_id};
-    let voices_{component_id} = [];
-    let isPlaying_{component_id} = false;
-    
-    // Load voices
-    function loadVoices_{component_id}() {{
-        voices_{component_id} = speechSynthesis.getVoices();
-        console.log('Voices loaded for {component_id}:', voices_{component_id}.length);
-        updateStatus_{component_id}('System ready. ' + voices_{component_id}.length + ' voices available.');
-    }}
-    
-    // Update status
-    function updateStatus_{component_id}(message) {{
-        const statusDiv = document.getElementById('status_{component_id}');
-        if (statusDiv) {{
-            statusDiv.innerHTML = message;
-            console.log('Status {component_id}:', message);
-        }}
-    }}
-    
-    // Test system function
-    function testSystem_{component_id}() {{
-        updateStatus_{component_id}('Testing audio system...');
-        
-        // Check if API exists
-        if (!('speechSynthesis' in window)) {{
-            updateStatus_{component_id}('❌ FAILED: Speech API not supported');
-            alert('Your browser does not support text-to-speech. Please try Chrome or Edge.');
-            return;
-        }}
-        
-        // Test with simple phrase
-        const testText = 'Audio test one two three';
-        const testUtterance = new SpeechSynthesisUtterance(testText);
-        testUtterance.volume = 1.0;
-        testUtterance.rate = 0.7;
-        testUtterance.pitch = 1.0;
-        
-        testUtterance.onstart = function() {{
-            updateStatus_{component_id}('🔊 TEST: Speaking "' + testText + '"');
-        }};
-        
-        testUtterance.onend = function() {{
-            updateStatus_{component_id}('✅ TEST SUCCESSFUL: Audio is working!');
-        }};
-        
-        testUtterance.onerror = function(event) {{
-            updateStatus_{component_id}('❌ TEST FAILED: ' + event.error);
-            console.error('Test error:', event);
-        }};
-        
-        // Cancel any existing speech first
-        speechSynthesis.cancel();
-        setTimeout(() => {{
-            speechSynthesis.speak(testUtterance);
-        }}, 100);
-    }}
-    
-    // Force play function - tries multiple methods
-    function forcePlay_{component_id}() {{
-        updateStatus_{component_id}('🚀 FORCE MODE: Trying all methods...');
-        
-        // Method 1: Direct API call
-        try {{
-            speechSynthesis.cancel();
-            const directUtterance = new SpeechSynthesisUtterance("{js_safe_text}");
-            directUtterance.volume = 1.0;
-            directUtterance.rate = 0.6;
-            speechSynthesis.speak(directUtterance);
-            updateStatus_{component_id}('🚀 FORCE: Method 1 attempted');
-        }} catch (e) {{
-            console.error('Force method 1 failed:', e);
-        }}
-        
-        // Method 2: With timeout
-        setTimeout(() => {{
-            try {{
-                const delayedUtterance = new SpeechSynthesisUtterance("{js_safe_text}");
-                delayedUtterance.volume = 1.0;
-                speechSynthesis.speak(delayedUtterance);
-                updateStatus_{component_id}('🚀 FORCE: Method 2 attempted');
-            }} catch (e) {{
-                console.error('Force method 2 failed:', e);
-            }}
-        }}, 500);
-        
-        // Method 3: User interaction trigger
-        document.addEventListener('click', function forceClickHandler() {{
-            try {{
-                const clickUtterance = new SpeechSynthesisUtterance("{js_safe_text}");
-                speechSynthesis.speak(clickUtterance);
-                updateStatus_{component_id}('🚀 FORCE: Click-triggered method attempted');
-                document.removeEventListener('click', forceClickHandler);
-            }} catch (e) {{
-                console.error('Force method 3 failed:', e);
-            }}
-        }}, {{ once: true }});
-    }}
-    
-    // Main play function
-    function playAudio_{component_id}() {{
-        updateStatus_{component_id}('🎵 Starting audio playback...');
-        
-        if (!('speechSynthesis' in window)) {{
-            updateStatus_{component_id}('❌ Speech synthesis not supported');
-            alert('Text-to-speech not supported. Please use Chrome or Edge.');
-            return;
-        }}
-        
-        // Stop any current speech
-        speechSynthesis.cancel();
-        isPlaying_{component_id} = false;
-        
-        // Wait then create new utterance
-        setTimeout(() => {{
-            utterance_{component_id} = new SpeechSynthesisUtterance("{js_safe_text}");
-            utterance_{component_id}.volume = 1.0;
-            utterance_{component_id}.rate = 0.7;
-            utterance_{component_id}.pitch = 1.0;
-            
-            // Try to use best voice
-            if (voices_{component_id}.length > 0) {{
-                const englishVoice = voices_{component_id}.find(v => v.lang.includes('en-US')) || 
-                                   voices_{component_id}.find(v => v.lang.includes('en')) ||
-                                   voices_{component_id}[0];
-                if (englishVoice) {{
-                    utterance_{component_id}.voice = englishVoice;
-                }}
-            }}
-            
-            utterance_{component_id}.onstart = function() {{
-                isPlaying_{component_id} = true;
-                updateStatus_{component_id}('🔊 NOW PLAYING: {doc_name}');
-            }};
-            
-            utterance_{component_id}.onend = function() {{
-                isPlaying_{component_id} = false;
-                updateStatus_{component_id}('✅ Playback completed successfully');
-            }};
-            
-            utterance_{component_id}.onerror = function(event) {{
-                isPlaying_{component_id} = false;
-                updateStatus_{component_id}('❌ Playback error: ' + event.error);
-                console.error('Speech error:', event);
-                
-                // Try fallback
-                setTimeout(() => {{
-                    const fallbackUtterance = new SpeechSynthesisUtterance('Fallback audio test');
-                    speechSynthesis.speak(fallbackUtterance);
-                }}, 1000);
-            }};
-            
-            // Start speaking
-            speechSynthesis.speak(utterance_{component_id});
-            
-        }}, 200);
-    }}
-    
-    // Stop function
-    function stopAudio_{component_id}() {{
-        speechSynthesis.cancel();
-        isPlaying_{component_id} = false;
-        updateStatus_{component_id}('⏹️ Audio stopped');
-    }}
-    
-    // Initialize voices
-    if (speechSynthesis.onvoiceschanged !== undefined) {{
-        speechSynthesis.onvoiceschanged = loadVoices_{component_id};
-    }}
-    setTimeout(loadVoices_{component_id}, 100);
-    
-    // Auto-test on load
-    setTimeout(() => {{
-        updateStatus_{component_id}('Ready to play. Click TEST first if audio issues.');
-    }}, 500);
-    
-    </script>
-    """
-    
-    return speech_html
+# Removed the old create_speech_component function since we're using Streamlit components directly
 
 def generate_summary(text):
     """Generate a simple summary (lightweight version)"""
@@ -1097,30 +863,137 @@ if docs:
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    # Use Streamlit's HTML component with autoplay
+                    # Show controls after starting speech
+                    col_stop, col_pause = st.columns([1, 1])
+                    with col_stop:
+                        if st.button("⏹️ Stop Speech", key=f"stop_speech_{i}", use_container_width=True):
+                            st.components.v1.html("""
+                            <script>
+                            if ('speechSynthesis' in window) {
+                                speechSynthesis.cancel();
+                            }
+                            document.body.innerHTML = '<div style="background: #dc3545; color: white; padding: 10px; text-align: center; border-radius: 5px;">⏹️ Speech Stopped</div>';
+                            </script>
+                            """, height=50)
+                    
+                    with col_pause:
+                        if st.button("⏸️ Pause/Resume", key=f"pause_speech_{i}", use_container_width=True):
+                            st.components.v1.html("""
+                            <script>
+                            if ('speechSynthesis' in window) {
+                                if (speechSynthesis.speaking && !speechSynthesis.paused) {
+                                    speechSynthesis.pause();
+                                    document.body.innerHTML = '<div style="background: #ffc107; color: black; padding: 10px; text-align: center; border-radius: 5px;">⏸️ Speech Paused</div>';
+                                } else if (speechSynthesis.paused) {
+                                    speechSynthesis.resume();
+                                    document.body.innerHTML = '<div style="background: #28a745; color: white; padding: 10px; text-align: center; border-radius: 5px;">▶️ Speech Resumed</div>';
+                                }
+                            }
+                            </script>
+                            """, height=50)
                     st.components.v1.html(f"""
                     <script>
-                    // Wait for page to load then speak
+                    // Wait for page to load then speak with best voice
                     window.addEventListener('load', function() {{
                         setTimeout(function() {{
                             if ('speechSynthesis' in window) {{
-                                const utterance = new SpeechSynthesisUtterance(`{demo_text.replace('"', '\\"').replace("'", "\\'")}`);
-                                utterance.rate = 0.7;
-                                utterance.volume = 1.0;
-                                speechSynthesis.speak(utterance);
+                                // Get all available voices
+                                let voices = speechSynthesis.getVoices();
                                 
-                                // Show visual feedback
-                                document.body.style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
-                                document.body.style.color = 'white';
-                                document.body.style.padding = '20px';
-                                document.body.style.borderRadius = '10px';
-                                document.body.innerHTML = '<h3>🔊 Speaking: {doc_name}</h3><p>Audio is playing...</p>';
+                                // If voices not loaded yet, wait for them
+                                if (voices.length === 0) {{
+                                    speechSynthesis.onvoiceschanged = function() {{
+                                        voices = speechSynthesis.getVoices();
+                                        speakWithBestVoice(voices);
+                                    }};
+                                }} else {{
+                                    speakWithBestVoice(voices);
+                                }}
+                                
+                                function speakWithBestVoice(voices) {{
+                                    console.log('Available voices:', voices.length);
+                                    
+                                    // Priority list for best English voices (most natural first)
+                                    const preferredVoices = [
+                                        // Windows high-quality voices
+                                        'Microsoft Zira - English (United States)',
+                                        'Microsoft David - English (United States)', 
+                                        'Microsoft Mark - English (United States)',
+                                        'Microsoft Hazel - English (Great Britain)',
+                                        
+                                        // macOS high-quality voices
+                                        'Alex', 'Samantha', 'Victoria', 'Karen', 'Daniel',
+                                        'Fiona', 'Moira', 'Tessa',
+                                        
+                                        // Chrome/Edge premium voices
+                                        'Google US English', 'Chrome OS US English',
+                                        'Microsoft Edge English',
+                                        
+                                        // Android premium voices
+                                        'en-US-language', 'en-us-x-sfg-network',
+                                        'en-US-Wavenet', 'English United States',
+                                        
+                                        // iOS premium voices
+                                        'Ava (Enhanced)', 'Allison (Enhanced)', 
+                                        'Tom (Enhanced)', 'Susan (Enhanced)'
+                                    ];
+                                    
+                                    let selectedVoice = null;
+                                    
+                                    // Try to find the best voice
+                                    for (let preferred of preferredVoices) {{
+                                        selectedVoice = voices.find(voice => 
+                                            voice.name.includes(preferred) ||
+                                            voice.name === preferred
+                                        );
+                                        if (selectedVoice) break;
+                                    }}
+                                    
+                                    // Fallback: find any good English voice
+                                    if (!selectedVoice) {{
+                                        selectedVoice = voices.find(voice => 
+                                            voice.lang.includes('en-US') && voice.name.toLowerCase().includes('enhanced')
+                                        ) || voices.find(voice => 
+                                            voice.lang.includes('en-US') && voice.name.toLowerCase().includes('premium')
+                                        ) || voices.find(voice => 
+                                            voice.lang.includes('en-US') && !voice.name.toLowerCase().includes('compact')
+                                        ) || voices.find(voice => 
+                                            voice.lang.includes('en')
+                                        ) || voices[0];
+                                    }}
+                                    
+                                    const utterance = new SpeechSynthesisUtterance(`{demo_text.replace('"', '\\"').replace("'", "\\'")}`);
+                                    
+                                    // Use the selected high-quality voice
+                                    if (selectedVoice) {{
+                                        utterance.voice = selectedVoice;
+                                        console.log('Using voice:', selectedVoice.name);
+                                    }}
+                                    
+                                    // Optimize speech parameters for natural sound
+                                    utterance.rate = 0.85;      // Slightly slower for clarity
+                                    utterance.pitch = 1.0;     // Natural pitch
+                                    utterance.volume = 1.0;    // Full volume
+                                    
+                                    speechSynthesis.speak(utterance);
+                                    
+                                    // Show visual feedback with voice info
+                                    document.body.style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
+                                    document.body.style.color = 'white';
+                                    document.body.style.padding = '20px';
+                                    document.body.style.borderRadius = '10px';
+                                    document.body.innerHTML = `
+                                        <h3>🔊 Speaking: {doc_name}</h3>
+                                        <p>Voice: ${{selectedVoice ? selectedVoice.name : 'Default'}}</p>
+                                        <p>Audio is playing with enhanced voice quality...</p>
+                                    `;
+                                }}
                             }}
                         }}, 500);
                     }});
                     </script>
                     <div style="background: #28a745; color: white; padding: 10px; text-align: center; border-radius: 5px;">
-                        🔊 Audio Starting... (You should hear the text being read aloud)
+                        🔊 Loading premium voice... (You should hear high-quality speech)
                     </div>
                     """, height=100)
                     
@@ -1143,28 +1016,104 @@ if docs:
                                 </div>
                                 """, unsafe_allow_html=True)
                                 
-                                # Use Streamlit's HTML component for real text
+                                # Add stop/pause controls for real documents too
+                                col_stop, col_pause = st.columns([1, 1])
+                                with col_stop:
+                                    if st.button("⏹️ Stop Speech", key=f"stop_real_{i}", use_container_width=True):
+                                        st.components.v1.html("""
+                                        <script>
+                                        if ('speechSynthesis' in window) {
+                                            speechSynthesis.cancel();
+                                        }
+                                        document.body.innerHTML = '<div style="background: #dc3545; color: white; padding: 10px; text-align: center; border-radius: 5px;">⏹️ Document Speech Stopped</div>';
+                                        </script>
+                                        """, height=50)
+                                
+                                with col_pause:
+                                    if st.button("⏸️ Pause/Resume", key=f"pause_real_{i}", use_container_width=True):
+                                        st.components.v1.html("""
+                                        <script>
+                                        if ('speechSynthesis' in window) {
+                                            if (speechSynthesis.speaking && !speechSynthesis.paused) {
+                                                speechSynthesis.pause();
+                                                document.body.innerHTML = '<div style="background: #ffc107; color: black; padding: 10px; text-align: center; border-radius: 5px;">⏸️ Document Paused</div>';
+                                            } else if (speechSynthesis.paused) {
+                                                speechSynthesis.resume();
+                                                document.body.innerHTML = '<div style="background: #28a745; color: white; padding: 10px; text-align: center; border-radius: 5px;">▶️ Document Resumed</div>';
+                                            }
+                                        }
+                                        </script>
+                                        """, height=50)
                                 st.components.v1.html(f"""
                                 <script>
                                 window.addEventListener('load', function() {{
                                     setTimeout(function() {{
                                         if ('speechSynthesis' in window) {{
-                                            const utterance = new SpeechSynthesisUtterance(`{clean_text}`);
-                                            utterance.rate = 0.7;
-                                            utterance.volume = 1.0;
-                                            speechSynthesis.speak(utterance);
+                                            let voices = speechSynthesis.getVoices();
                                             
-                                            document.body.style.background = 'linear-gradient(45deg, #28a745, #20c997)';
-                                            document.body.style.color = 'white';
-                                            document.body.style.padding = '20px';
-                                            document.body.style.borderRadius = '10px';
-                                            document.body.innerHTML = '<h3>🔊 Reading: {doc_name}</h3><p>Playing document audio...</p>';
+                                            if (voices.length === 0) {{
+                                                speechSynthesis.onvoiceschanged = function() {{
+                                                    voices = speechSynthesis.getVoices();
+                                                    speakDocument(voices);
+                                                }};
+                                            }} else {{
+                                                speakDocument(voices);
+                                            }}
+                                            
+                                            function speakDocument(voices) {{
+                                                // Premium voice selection for documents
+                                                const preferredVoices = [
+                                                    'Microsoft Zira - English (United States)',
+                                                    'Microsoft David - English (United States)', 
+                                                    'Alex', 'Samantha', 'Victoria',
+                                                    'Google US English', 'Ava (Enhanced)',
+                                                    'en-US-Wavenet'
+                                                ];
+                                                
+                                                let selectedVoice = null;
+                                                for (let preferred of preferredVoices) {{
+                                                    selectedVoice = voices.find(voice => 
+                                                        voice.name.includes(preferred) || voice.name === preferred
+                                                    );
+                                                    if (selectedVoice) break;
+                                                }}
+                                                
+                                                // Fallback to best available English voice
+                                                if (!selectedVoice) {{
+                                                    selectedVoice = voices.find(voice => 
+                                                        voice.lang.includes('en-US') && !voice.name.toLowerCase().includes('compact')
+                                                    ) || voices.find(voice => voice.lang.includes('en')) || voices[0];
+                                                }}
+                                                
+                                                const utterance = new SpeechSynthesisUtterance(`{clean_text}`);
+                                                
+                                                if (selectedVoice) {{
+                                                    utterance.voice = selectedVoice;
+                                                }}
+                                                
+                                                // Professional speech settings for documents
+                                                utterance.rate = 0.8;       // Slower for business documents
+                                                utterance.pitch = 1.0;     // Natural pitch
+                                                utterance.volume = 1.0;    // Full volume
+                                                
+                                                speechSynthesis.speak(utterance);
+                                                
+                                                document.body.style.background = 'linear-gradient(45deg, #28a745, #20c997)';
+                                                document.body.style.color = 'white';
+                                                document.body.style.padding = '20px';
+                                                document.body.style.borderRadius = '10px';
+                                                document.body.innerHTML = `
+                                                    <h3>🔊 Reading Document: {doc_name}</h3>
+                                                    <p>High-Quality Voice: ${{selectedVoice ? selectedVoice.name : 'Default'}}</p>
+                                                    <p>Playing professional document audio...</p>
+                                                `;
+                                            }}
                                         }}
                                     }}, 500);
                                 }});
                                 </script>
                                 <div style="background: #28a745; color: white; padding: 10px; text-align: center; border-radius: 5px;">
-                                    🔊 Audio Starting... Playing document content
+                                    🔊 Loading premium voice for document... Enhanced audio quality
                                 </div>
                                 """, height=100)
                             else:
