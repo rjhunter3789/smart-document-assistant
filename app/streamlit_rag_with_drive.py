@@ -318,9 +318,9 @@ def extract_text_from_file(service, file_id, file_name):
         return f"Error extracting text: {str(e)}"
 
 def create_speech_component(text, doc_name):
-    """Create a text-to-speech component with enhanced compatibility"""
-    # Truncate text for speech (first 500 characters)
-    speech_text = text[:500] + "..." if len(text) > 500 else text
+    """Create a text-to-speech component with multiple fallback methods"""
+    # Truncate text for speech (first 300 characters for better compatibility)
+    speech_text = text[:300] + "..." if len(text) > 300 else text
     
     # Clean text for speech (remove special characters)
     import re
@@ -334,206 +334,219 @@ def create_speech_component(text, doc_name):
     import random
     component_id = f"speech_{random.randint(1000, 9999)}"
     
-    # Create HTML for speech synthesis with enhanced error handling
+    # Create HTML for speech synthesis with multiple methods
     speech_html = f"""
-    <div style="background: #f0f8ff; padding: 1rem; border-radius: 8px; margin: 1rem 0; border: 2px solid #4facfe;">
-        <h4>🔊 Now Reading: {doc_name}</h4>
-        <p style="font-style: italic; color: #666; margin: 0.5rem 0;">"{clean_text}"</p>
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 12px; margin: 1rem 0; color: white;">
+        <h4 style="margin-top: 0; color: white;">🔊 Audio Player: {doc_name}</h4>
+        <p style="background: rgba(255,255,255,0.1); padding: 0.8rem; border-radius: 6px; font-style: italic; margin: 1rem 0;">
+            "{clean_text}"
+        </p>
         <div style="margin: 1rem 0;">
-            <button id="play_{component_id}" onclick="speakText_{component_id}()" style="
-                background: linear-gradient(45deg, #56ab2f, #a8e6cf);
-                color: white;
-                border: none;
-                padding: 0.7rem 1.2rem;
-                border-radius: 8px;
-                cursor: pointer;
-                margin-right: 0.5rem;
-                font-weight: bold;
-                font-size: 14px;
-            ">▶️ Play Speech</button>
-            <button id="stop_{component_id}" onclick="stopSpeech_{component_id}()" style="
-                background: #ff6b6b;
-                color: white;
-                border: none;
-                padding: 0.7rem 1.2rem;
-                border-radius: 8px;
-                cursor: pointer;
-                margin-right: 0.5rem;
-                font-weight: bold;
-                font-size: 14px;
-            ">⏹️ Stop</button>
-            <button id="pause_{component_id}" onclick="pauseSpeech_{component_id}()" style="
-                background: #ffa726;
-                color: white;
-                border: none;
-                padding: 0.7rem 1.2rem;
-                border-radius: 8px;
-                cursor: pointer;
-                margin-right: 0.5rem;
-                font-weight: bold;
-                font-size: 14px;
-            ">⏸️ Pause/Resume</button>
-            <button onclick="testAudio_{component_id}()" style="
-                background: #17a2b8;
-                color: white;
-                border: none;
-                padding: 0.7rem 1.2rem;
-                border-radius: 8px;
-                cursor: pointer;
-                font-weight: bold;
-                font-size: 14px;
-            ">🔧 Test Audio</button>
+            <button id="play_{component_id}" onclick="playAudio_{component_id}()" style="
+                background: #28a745; color: white; border: none; padding: 0.8rem 1.5rem; 
+                border-radius: 8px; cursor: pointer; margin-right: 0.5rem; font-weight: bold; font-size: 16px;
+            ">🔊 PLAY AUDIO</button>
+            
+            <button onclick="stopAudio_{component_id}()" style="
+                background: #dc3545; color: white; border: none; padding: 0.8rem 1.5rem; 
+                border-radius: 8px; cursor: pointer; margin-right: 0.5rem; font-weight: bold; font-size: 16px;
+            ">⏹️ STOP</button>
+            
+            <button onclick="testSystem_{component_id}()" style="
+                background: #ffc107; color: black; border: none; padding: 0.8rem 1.5rem; 
+                border-radius: 8px; cursor: pointer; margin-right: 0.5rem; font-weight: bold; font-size: 16px;
+            ">🔧 TEST</button>
+            
+            <button onclick="forcePlay_{component_id}()" style="
+                background: #17a2b8; color: white; border: none; padding: 0.8rem 1.5rem; 
+                border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px;
+            ">🚀 FORCE PLAY</button>
         </div>
         <div id="status_{component_id}" style="
-            background: #e9ecef;
-            padding: 0.5rem;
-            border-radius: 5px;
-            margin-top: 0.5rem;
-            font-size: 12px;
-            color: #495057;
-        ">Ready to speak...</div>
+            background: rgba(255,255,255,0.2); padding: 0.8rem; border-radius: 6px; 
+            margin-top: 1rem; font-size: 14px; font-weight: bold;
+        ">Click PLAY AUDIO to start...</div>
     </div>
     
     <script>
-    // Speech variables for this component
+    console.log('Audio component {component_id} initialized');
+    
+    // Multiple speech variables
     let utterance_{component_id};
     let voices_{component_id} = [];
+    let isPlaying_{component_id} = false;
     
-    // Load voices when available
+    // Load voices
     function loadVoices_{component_id}() {{
         voices_{component_id} = speechSynthesis.getVoices();
-        console.log('Available voices:', voices_{component_id}.length);
-        updateStatus_{component_id}('Voices loaded: ' + voices_{component_id}.length + ' available');
+        console.log('Voices loaded for {component_id}:', voices_{component_id}.length);
+        updateStatus_{component_id}('System ready. ' + voices_{component_id}.length + ' voices available.');
     }}
     
-    // Update status display
+    // Update status
     function updateStatus_{component_id}(message) {{
         const statusDiv = document.getElementById('status_{component_id}');
         if (statusDiv) {{
             statusDiv.innerHTML = message;
-            console.log('Speech Status:', message);
+            console.log('Status {component_id}:', message);
         }}
     }}
     
-    // Test audio function
-    function testAudio_{component_id}() {{
+    // Test system function
+    function testSystem_{component_id}() {{
         updateStatus_{component_id}('Testing audio system...');
         
+        // Check if API exists
         if (!('speechSynthesis' in window)) {{
-            updateStatus_{component_id}('❌ Speech synthesis not supported in this browser');
-            alert('Text-to-speech is not supported in your browser. Try Chrome, Edge, or Safari.');
+            updateStatus_{component_id}('❌ FAILED: Speech API not supported');
+            alert('Your browser does not support text-to-speech. Please try Chrome or Edge.');
             return;
         }}
         
-        // Test with simple text
-        const testUtterance = new SpeechSynthesisUtterance('Audio test. Can you hear this?');
-        testUtterance.volume = 1;
-        testUtterance.rate = 1;
-        testUtterance.pitch = 1;
+        // Test with simple phrase
+        const testText = 'Audio test one two three';
+        const testUtterance = new SpeechSynthesisUtterance(testText);
+        testUtterance.volume = 1.0;
+        testUtterance.rate = 0.7;
+        testUtterance.pitch = 1.0;
         
         testUtterance.onstart = function() {{
-            updateStatus_{component_id}('🔊 Test audio playing...');
+            updateStatus_{component_id}('🔊 TEST: Speaking "' + testText + '"');
         }};
         
         testUtterance.onend = function() {{
-            updateStatus_{component_id}('✅ Test completed. Did you hear the test?');
+            updateStatus_{component_id}('✅ TEST SUCCESSFUL: Audio is working!');
         }};
         
         testUtterance.onerror = function(event) {{
-            updateStatus_{component_id}('❌ Test failed: ' + event.error);
+            updateStatus_{component_id}('❌ TEST FAILED: ' + event.error);
+            console.error('Test error:', event);
         }};
         
-        speechSynthesis.speak(testUtterance);
+        // Cancel any existing speech first
+        speechSynthesis.cancel();
+        setTimeout(() => {{
+            speechSynthesis.speak(testUtterance);
+        }}, 100);
     }}
     
-    // Main speak function
-    function speakText_{component_id}() {{
-        updateStatus_{component_id}('Initializing speech...');
+    // Force play function - tries multiple methods
+    function forcePlay_{component_id}() {{
+        updateStatus_{component_id}('🚀 FORCE MODE: Trying all methods...');
+        
+        // Method 1: Direct API call
+        try {{
+            speechSynthesis.cancel();
+            const directUtterance = new SpeechSynthesisUtterance("{js_safe_text}");
+            directUtterance.volume = 1.0;
+            directUtterance.rate = 0.6;
+            speechSynthesis.speak(directUtterance);
+            updateStatus_{component_id}('🚀 FORCE: Method 1 attempted');
+        }} catch (e) {{
+            console.error('Force method 1 failed:', e);
+        }}
+        
+        // Method 2: With timeout
+        setTimeout(() => {{
+            try {{
+                const delayedUtterance = new SpeechSynthesisUtterance("{js_safe_text}");
+                delayedUtterance.volume = 1.0;
+                speechSynthesis.speak(delayedUtterance);
+                updateStatus_{component_id}('🚀 FORCE: Method 2 attempted');
+            }} catch (e) {{
+                console.error('Force method 2 failed:', e);
+            }}
+        }}, 500);
+        
+        // Method 3: User interaction trigger
+        document.addEventListener('click', function forceClickHandler() {{
+            try {{
+                const clickUtterance = new SpeechSynthesisUtterance("{js_safe_text}");
+                speechSynthesis.speak(clickUtterance);
+                updateStatus_{component_id}('🚀 FORCE: Click-triggered method attempted');
+                document.removeEventListener('click', forceClickHandler);
+            }} catch (e) {{
+                console.error('Force method 3 failed:', e);
+            }}
+        }}, {{ once: true }});
+    }}
+    
+    // Main play function
+    function playAudio_{component_id}() {{
+        updateStatus_{component_id}('🎵 Starting audio playback...');
         
         if (!('speechSynthesis' in window)) {{
             updateStatus_{component_id}('❌ Speech synthesis not supported');
-            alert('Text-to-speech is not supported in your browser');
+            alert('Text-to-speech not supported. Please use Chrome or Edge.');
             return;
         }}
         
-        // Stop any ongoing speech
+        // Stop any current speech
         speechSynthesis.cancel();
+        isPlaying_{component_id} = false;
         
-        // Wait a moment then create new utterance
-        setTimeout(function() {{
+        // Wait then create new utterance
+        setTimeout(() => {{
             utterance_{component_id} = new SpeechSynthesisUtterance("{js_safe_text}");
+            utterance_{component_id}.volume = 1.0;
+            utterance_{component_id}.rate = 0.7;
+            utterance_{component_id}.pitch = 1.0;
             
-            // Set speech parameters
-            utterance_{component_id}.volume = 1;      // Max volume
-            utterance_{component_id}.rate = 0.8;      // Slower for clarity
-            utterance_{component_id}.pitch = 1;       // Normal pitch
-            
-            // Try to use a good voice if available
+            // Try to use best voice
             if (voices_{component_id}.length > 0) {{
-                // Prefer English voices
-                const englishVoice = voices_{component_id}.find(voice => voice.lang.includes('en'));
+                const englishVoice = voices_{component_id}.find(v => v.lang.includes('en-US')) || 
+                                   voices_{component_id}.find(v => v.lang.includes('en')) ||
+                                   voices_{component_id}[0];
                 if (englishVoice) {{
                     utterance_{component_id}.voice = englishVoice;
-                    updateStatus_{component_id}('Using voice: ' + englishVoice.name);
                 }}
             }}
             
-            // Speech event handlers
             utterance_{component_id}.onstart = function() {{
-                updateStatus_{component_id}('🔊 Speaking: "{doc_name}"');
+                isPlaying_{component_id} = true;
+                updateStatus_{component_id}('🔊 NOW PLAYING: {doc_name}');
             }};
             
             utterance_{component_id}.onend = function() {{
-                updateStatus_{component_id}('✅ Speech completed');
+                isPlaying_{component_id} = false;
+                updateStatus_{component_id}('✅ Playback completed successfully');
             }};
             
             utterance_{component_id}.onerror = function(event) {{
-                updateStatus_{component_id}('❌ Speech error: ' + event.error);
+                isPlaying_{component_id} = false;
+                updateStatus_{component_id}('❌ Playback error: ' + event.error);
                 console.error('Speech error:', event);
-            }};
-            
-            utterance_{component_id}.onpause = function() {{
-                updateStatus_{component_id}('⏸️ Speech paused');
-            }};
-            
-            utterance_{component_id}.onresume = function() {{
-                updateStatus_{component_id}('▶️ Speech resumed');
+                
+                // Try fallback
+                setTimeout(() => {{
+                    const fallbackUtterance = new SpeechSynthesisUtterance('Fallback audio test');
+                    speechSynthesis.speak(fallbackUtterance);
+                }}, 1000);
             }};
             
             // Start speaking
             speechSynthesis.speak(utterance_{component_id});
             
-        }}, 100);
+        }}, 200);
     }}
     
-    function stopSpeech_{component_id}() {{
-        if ('speechSynthesis' in window) {{
-            speechSynthesis.cancel();
-            updateStatus_{component_id}('⏹️ Speech stopped');
-        }}
+    // Stop function
+    function stopAudio_{component_id}() {{
+        speechSynthesis.cancel();
+        isPlaying_{component_id} = false;
+        updateStatus_{component_id}('⏹️ Audio stopped');
     }}
     
-    function pauseSpeech_{component_id}() {{
-        if ('speechSynthesis' in window) {{
-            if (speechSynthesis.speaking && !speechSynthesis.paused) {{
-                speechSynthesis.pause();
-                updateStatus_{component_id}('⏸️ Speech paused');
-            }} else if (speechSynthesis.paused) {{
-                speechSynthesis.resume();
-                updateStatus_{component_id}('▶️ Speech resumed');
-            }} else {{
-                updateStatus_{component_id}('ℹ️ No speech to pause');
-            }}
-        }}
-    }}
-    
-    // Initialize voices when available
+    // Initialize voices
     if (speechSynthesis.onvoiceschanged !== undefined) {{
         speechSynthesis.onvoiceschanged = loadVoices_{component_id};
     }}
-    
-    // Load voices immediately if already available
     setTimeout(loadVoices_{component_id}, 100);
+    
+    // Auto-test on load
+    setTimeout(() => {{
+        updateStatus_{component_id}('Ready to play. Click TEST first if audio issues.');
+    }}, 500);
     
     </script>
     """
