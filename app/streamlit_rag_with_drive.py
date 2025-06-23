@@ -412,23 +412,79 @@ if not demo_mode and service:
                 not any(f['full_path'].startswith(p) for p in excluded_paths)
             ]
             
-            # Create a simplified folder selection - just show all available paths
-            folder_paths = [f['full_path'] for f in filtered_folders]
-            folder_paths.sort()
+            # Find team folders and WMA folders for step 1
+            team_names = ["Aaron", "Brody", "Dona", "Eric", "Grace", "Jeff", "Jessica", "Jill", "John", "Jon", "Kirk", "Owen", "Paul"]
+            wma_folders = [f for f in filtered_folders if 'WMA' in f['name']]
+            team_folders = [f for f in filtered_folders if f['name'] in team_names]
             
+            # Combine and get unique main folder names
+            main_folders = wma_folders + team_folders
+            main_folder_names = list(set([f['name'] for f in main_folders if '/' not in f['full_path']]))
+            main_folder_names.sort()
+            
+            # Step 1: Select main folder
             st.markdown('<div class="nav-section">', unsafe_allow_html=True)
-            st.markdown('<div class="nav-title">📁 Select Your Folder</div>', unsafe_allow_html=True)
+            st.markdown('<div class="nav-title">📁 Step 1: Select Your Main Folder</div>', unsafe_allow_html=True)
             
-            selected_folder_path = st.selectbox(
-                "Choose a folder:", 
-                folder_paths, 
+            selected_main_folder = st.selectbox(
+                "Choose main folder:", 
+                main_folder_names, 
                 label_visibility="collapsed"
             )
             
             st.markdown('</div>', unsafe_allow_html=True)
             
-            # Get the selected folder object
-            selected_folder = next((f for f in filtered_folders if f['full_path'] == selected_folder_path), None)
+            # Step 2: Get subfolders for selected main folder
+            subfolders = [f for f in filtered_folders if f['full_path'].startswith(selected_main_folder + '/')]
+            level_1_subfolders = [f for f in subfolders if f['full_path'].count('/') == 1]
+            
+            selected_folder = None
+            selected_folder_path = selected_main_folder
+            
+            if level_1_subfolders:
+                st.markdown('<div class="nav-section">', unsafe_allow_html=True)
+                st.markdown('<div class="nav-title">📂 Step 2: Select Subfolder</div>', unsafe_allow_html=True)
+                
+                level_1_paths = [f['full_path'] for f in level_1_subfolders]
+                level_1_paths.sort()
+                
+                selected_level_1 = st.selectbox(
+                    "Choose subfolder:", 
+                    level_1_paths, 
+                    label_visibility="collapsed"
+                )
+                
+                st.markdown('</div>', unsafe_allow_html=True)
+                
+                # Step 3: Get level 2 subfolders
+                level_2_subfolders = [f for f in filtered_folders if f['full_path'].startswith(selected_level_1 + '/')]
+                immediate_level_2 = [f for f in level_2_subfolders if f['full_path'].count('/') == 2]
+                
+                if immediate_level_2:
+                    st.markdown('<div class="nav-section">', unsafe_allow_html=True)
+                    st.markdown('<div class="nav-title">📋 Step 3: Select Final Folder</div>', unsafe_allow_html=True)
+                    
+                    level_2_paths = [f['full_path'] for f in immediate_level_2]
+                    level_2_paths.sort()
+                    
+                    selected_level_2 = st.selectbox(
+                        "Choose final folder:", 
+                        level_2_paths, 
+                        label_visibility="collapsed"
+                    )
+                    
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    
+                    selected_folder = next((f for f in immediate_level_2 if f['full_path'] == selected_level_2), None)
+                    selected_folder_path = selected_level_2
+                else:
+                    # Use level 1 as final selection
+                    selected_folder = next((f for f in level_1_subfolders if f['full_path'] == selected_level_1), None)
+                    selected_folder_path = selected_level_1
+            else:
+                # Use main folder as final selection
+                selected_folder = next((f for f in main_folders if f['name'] == selected_main_folder and '/' not in f['full_path']), None)
+                selected_folder_path = selected_main_folder
             
             if selected_folder:
                 st.write(f"🔍 **DEBUG:** Selected folder: {selected_folder['full_path']}")
