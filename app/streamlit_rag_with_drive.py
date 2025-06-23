@@ -1,19 +1,4 @@
-def download_file(service, file_id, name):
-    """Download a file from Google Drive"""
-    try:
-        request = service.files().get_media(fileId=file_id)
-        fh = io.BytesIO()
-        downloader = MediaIoBaseDownload(fh, request)
-        done = False
-        while not done:
-            _, done = downloader.next_chunk()
-        path = os.path.join(DOCS_DIR, name)
-        with open(path, 'wb') as f:
-            f.write(fh.getvalue())
-        return path
-    except Exception as e:
-        st.error(f"Error downloading file: {str(e)}")
-        return Noneimport os
+import os
 import io
 import fitz  # PyMuPDF
 from docx import Document as DocxDoc
@@ -272,6 +257,23 @@ def list_files(service, folder_id):
         st.error(f"Error listing files: {str(e)}")
         return []
 
+def download_file(service, file_id, name):
+    """Download a file from Google Drive"""
+    try:
+        request = service.files().get_media(fileId=file_id)
+        fh = io.BytesIO()
+        downloader = MediaIoBaseDownload(fh, request)
+        done = False
+        while not done:
+            _, done = downloader.next_chunk()
+        path = os.path.join(DOCS_DIR, name)
+        with open(path, 'wb') as f:
+            f.write(fh.getvalue())
+        return path
+    except Exception as e:
+        st.error(f"Error downloading file: {str(e)}")
+        return None
+
 def extract_text_from_file(service, file_id, file_name):
     """Extract text content from a Google Drive file"""
     try:
@@ -395,6 +397,103 @@ def create_speech_component(text, doc_name):
     
     return speech_html
 
+def generate_summary(text):
+    """Generate a simple summary (lightweight version)"""
+    if not text.strip():
+        return "No readable content found."
+    
+    # Simple text truncation for demo
+    sentences = text.split('.')[:3]  # First 3 sentences
+    summary = '. '.join(sentences).strip()
+    
+    if len(summary) > 300:
+        summary = summary[:300] + "..."
+    
+    return summary if summary else "Document summary would appear here with full AI capabilities."
+
+def process_voice_command(docs, service, demo_mode):
+    """Process voice commands and execute actions"""
+    if 'voice_command' in st.session_state and st.session_state.voice_command:
+        command = st.session_state.voice_command
+        action = command['action']
+        search_term = command['search_term']
+        
+        # Search for matching documents
+        matching_docs = []
+        for doc in docs:
+            doc_name = doc.get('name', '').lower()
+            if search_term in doc_name:
+                matching_docs.append(doc)
+        
+        if matching_docs:
+            st.success(f"🎯 Found {len(matching_docs)} document(s) matching '{search_term}'")
+            
+            # Process the first matching document
+            target_doc = matching_docs[0]
+            doc_name = target_doc.get('name', 'Unknown Document')
+            
+            if action == 'summarize':
+                st.markdown("### 🤖 Auto-Generated Summary")
+                
+                if demo_mode or 'id' not in target_doc:
+                    # Demo summary
+                    demo_summaries = {
+                        'chat': "ChatAI Introduction and FAQ: This document covers the basics of AI-powered chat systems, including implementation strategies, common questions, and best practices for automotive dealerships.",
+                        'impel': "Impel AI Platform Review: Comprehensive analysis of Impel's automotive AI platform, comparing features with competitors and outlining integration benefits for dealership operations.",
+                        'automotive': "Automotive AI Platform Comparison: Detailed evaluation of leading AI platforms in the automotive sector, including cost analysis and ROI projections."
+                    }
+                    
+                    summary = next((v for k, v in demo_summaries.items() if k in search_term), 
+                                 f"AI Summary of {doc_name}: This document contains important information relevant to your automotive business operations and strategic decisions.")
+                    
+                    st.info(f"📋 **Summary of {doc_name}:**\n\n{summary}")
+                    
+                    # Auto-read the summary
+                    speech_component = create_speech_component(summary, f"Summary of {doc_name}")
+                    st.markdown(speech_component, unsafe_allow_html=True)
+                    
+                else:
+                    # Real document summary
+                    with st.spinner(f"Analyzing {doc_name}..."):
+                        file_text = extract_text_from_file(service, target_doc['id'], doc_name)
+                        if file_text and not file_text.startswith("Error"):
+                            summary = generate_summary(file_text)
+                            st.info(f"📋 **Summary of {doc_name}:**\n\n{summary}")
+                            
+                            # Auto-read the summary
+                            speech_component = create_speech_component(summary, f"Summary of {doc_name}")
+                            st.markdown(speech_component, unsafe_allow_html=True)
+                        else:
+                            st.error("Unable to analyze document")
+            
+            elif action == 'read':
+                st.markdown("### 🔊 Auto-Reading Document")
+                
+                if demo_mode or 'id' not in target_doc:
+                    demo_text = f"Now reading {doc_name}. This is a demonstration of the voice reading capability for automotive document management."
+                    speech_component = create_speech_component(demo_text, doc_name)
+                    st.markdown(speech_component, unsafe_allow_html=True)
+                else:
+                    with st.spinner(f"Extracting text from {doc_name}..."):
+                        file_text = extract_text_from_file(service, target_doc['id'], doc_name)
+                        if file_text and not file_text.startswith("Error"):
+                            speech_component = create_speech_component(file_text, doc_name)
+                            st.markdown(speech_component, unsafe_allow_html=True)
+                        else:
+                            st.error("Unable to extract text for reading")
+            
+            elif action == 'find':
+                st.markdown("### 🔍 Search Results")
+                st.success(f"Found {len(matching_docs)} document(s):")
+                for doc in matching_docs:
+                    st.write(f"📄 {doc.get('name', 'Unknown')}")
+            
+            # Clear the command after processing
+            st.session_state.voice_command = None
+            
+        else:
+            st.warning(f"❌ No documents found matching '{search_term}'. Try a different search term.")
+
 # Demo documents for fallback
 demo_docs = [
     {'id': 'demo_1', 'name': 'AI Strategy Presentation.pdf', 'mimeType': 'application/pdf'},
@@ -498,6 +597,14 @@ filename_query = st.text_input(
 # Use the combined search query
 active_query = voice_input if voice_input else filename_query
 
+# Initialize session state
+if 'current_step' not in st.session_state:
+    st.session_state.current_step = 1
+if 'selected_folder_id' not in st.session_state:
+    st.session_state.selected_folder_id = None
+if 'selected_folder_path' not in st.session_state:
+    st.session_state.selected_folder_path = None
+
 # Authentication and Google Drive setup
 try:
     service = authenticate_gdrive()
@@ -577,7 +684,7 @@ if not demo_mode and service:
                         accessible_main_folders,
                         label_visibility="visible"
                     )
-            
+                    
                     # Step 2: Get subfolders for selected main folder (with security check)
                     if selected_main_folder in accessible_main_folders:
                         subfolders = [f for f in filtered_folders if f['full_path'].startswith(selected_main_folder + '/')]
@@ -625,162 +732,10 @@ if not demo_mode and service:
                         docs = demo_docs
                         demo_mode = True
                         selected_folder = None
-            
-            if selected_folder:
-                st.info(f"📂 Loading files from: {selected_folder['full_path']}")
-                
-                with st.spinner(f"🔄 Scanning {selected_folder['full_path']}..."):
-                    docs = list_files(service, selected_folder['id'])
-                
-                if docs:
-                    st.success(f"📄 **Found {len(docs)} files in {selected_folder['name']}**")
-                    demo_mode = False
                     
-                else:
-                    st.warning(f"📄 No files found in {selected_folder['full_path']}. This folder appears to be empty.")
-                    st.info("🔄 Showing demo documents instead.")
-                    docs = demo_docs
-                    demo_mode = True
-            else:
-                st.error("Could not find selected folder")
-                docs = demo_docs
-                demo_mode = True
-        else:
-            st.warning("No folders found in Google Drive. Showing demo documents.")
-            docs = demo_docs
-            demo_mode = True
-            
-    except Exception as e:
-        st.error(f"Error loading Google Drive folders: {str(e)}")
-        docs = demo_docs
-        demo_mode = True
-else:
-    # Demo mode
-    st.info("📁 **Demo Mode:** Showing sample documents")
-    docs = demo_docs
-
-# Apply search filter
-if active_query and docs:
-    original_count = len(docs)
-    filtered_docs = [doc for doc in docs if active_query.lower() in doc["name"].lower()]
-    if filtered_docs:
-        docs = filtered_docs
-        st.info(f"🔍 **Search Results:** Found {len(docs)} documents matching '{active_query}' (out of {original_count} total)")
-    else:
-        st.warning(f"❌ No documents found matching '{active_query}' in the selected folder")
-
-# Display results
-st.markdown("---")
-st.markdown("### 📄 Documents")
-
-if docs:
-    if demo_mode:
-        st.info(f"**Demo Mode:** Showing {len(docs)} sample documents")
-    else:
-        st.success(f"**{len(docs)} documents** from **{selected_folder_path}**")
-    
-    # Display each document
-    for i, doc in enumerate(docs):
-        doc_name = doc.get('name', 'Unknown Document')
-        
-        st.markdown(f"""
-        <div class="file-card">
-            <div class="file-name">📄 {doc_name}</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Action buttons
-        col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
-        
-        with col1:
-            if st.button("📖 Summary", key=f"sum_{i}", use_container_width=True):
-                if demo_mode:
-                    # Demo summaries
-                    demo_summaries = [
-                        "This AI Strategy presentation outlines our company's approach to implementing artificial intelligence across key business functions. It covers market trends, competitive analysis, and a 3-year AI adoption roadmap.",
-                        "Q4 sales exceeded targets by 15% with strong enterprise performance. Key highlights include 23% growth in recurring revenue and successful premium tier launch.",
-                        "Customer analysis reveals 45% increase in mobile app usage. Demographics show growth in 25-34 age segment with improved satisfaction scores.",
-                        "2025 product roadmap focuses on user experience enhancements, AI-powered features, and platform scalability with major Q2 and Q4 releases.",
-                        "Team performance metrics show 12% productivity improvement with new workflow optimizations. Employee satisfaction reached 4.6/5.",
-                        "Marketing campaign achieved 3.2x ROI with strong digital performance. Email open rates at 28%, social engagement up 67%."
-                    ]
-                    summary = demo_summaries[i % len(demo_summaries)]
-                    st.success(f"**📋 AI Summary:** {summary}")
-                else:
-                    st.success(f"**📋 Real Document Analysis:** This would analyze '{doc_name}' from your Google Drive folder '{selected_folder_path}' using AI!")
-        
-        with col2:
-            if st.button("🔊 Read", key=f"speak_{i}", use_container_width=True):
-                if demo_mode:
-                    # Demo text-to-speech
-                    demo_texts = [
-                        "This AI Strategy presentation outlines our company's approach to implementing artificial intelligence across key business functions.",
-                        "Q4 sales exceeded targets by 15% with strong enterprise performance and recurring revenue growth.",
-                        "Customer analysis reveals significant increase in mobile app usage and improved satisfaction scores.",
-                        "2025 product roadmap focuses on user experience enhancements and AI-powered features.",
-                        "Team performance metrics show productivity improvement with new workflow optimizations.",
-                        "Marketing campaign achieved strong ROI with excellent digital performance and engagement."
-                    ]
-                    demo_text = demo_texts[i % len(demo_texts)]
-                    speech_component = create_speech_component(demo_text, doc_name)
-                    st.markdown(speech_component, unsafe_allow_html=True)
-                else:
-                    # Real document text-to-speech
-                    if 'id' in doc:
-                        with st.spinner("Extracting text for speech..."):
-                            file_text = extract_text_from_file(service, doc['id'], doc_name)
-                            if file_text and not file_text.startswith("Error"):
-                                speech_component = create_speech_component(file_text, doc_name)
-                                st.markdown(speech_component, unsafe_allow_html=True)
-                            else:
-                                st.error("Unable to extract text for speech synthesis")
-                    else:
-                        st.error("Unable to read file: File ID not available")
-        
-        with col3:
-            if st.button("⬇️ Download", key=f"dl_{i}", use_container_width=True):
-                if demo_mode:
-                    st.success(f"✅ **Demo Download:** In production, {doc_name} would download from Google Drive!")
-                else:
-                    # Real download functionality
-                    if 'id' in doc:
-                        with st.spinner("Downloading..."):
-                            file_path = download_file(service, doc['id'], doc_name)
-                            if file_path:
-                                st.success(f"✅ **Downloaded:** {doc_name}")
-                                with open(file_path, 'rb') as f:
-                                    st.download_button(
-                                        label=f"💾 Save {doc_name}",
-                                        data=f.read(),
-                                        file_name=doc_name,
-                                        key=f"download_btn_{i}"
-                                    )
-                    else:
-                        st.error("Unable to download: File ID not available")
-        
-        with col4:
-            if st.button("🔗 Share", key=f"share_{i}", use_container_width=True):
-                if demo_mode:
-                    demo_url = f"https://demo-documents.example.com/{doc_name}"
-                    st.success(f"**🔗 Demo Share Link:** {demo_url}")
-                else:
-                    if 'id' in doc:
-                        share_url = f"https://drive.google.com/file/d/{doc['id']}/view"
-                        st.success(f"**🔗 Google Drive Link:** {share_url}")
-                        st.code(share_url, language=None)
-                    else:
-                        st.error("Unable to generate share link")
-        
-        st.markdown("---")
-else:
-    st.warning("📄 No documents found in the selected location.")
-
-# Footer
-st.markdown("---")
-st.markdown("""
-<div style='text-align: center; color: #666; font-size: 0.9rem; padding: 1rem;'>
-    🎤 Voice-Powered Smart Document Assistant<br>
-    Powered by AI • Built for productivity • Voice-enabled<br>
-    <small>💡 Tip: Use Chrome or Edge for best voice experience</small>
-</div>
-""", unsafe_allow_html=True)
+                    # Load files with security validation
+                    if selected_folder:
+                        # Double-check security: ensure user can access this folder
+                        folder_owner = selected_folder['full_path'].split('/')[0]
+                        if folder_owner in allowed_folders or any(selected_folder['full_path'].startswith(allowed) for allowed in allowed_folders):
+                            with st.spinner
