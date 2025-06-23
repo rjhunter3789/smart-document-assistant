@@ -287,7 +287,7 @@ def extract_text_from_file(service, file_id, file_name):
         downloader = MediaIoBaseDownload(fh, request)
         done = False
         while not done:
-            _, done = downloader.next_chunk()
+        _, done = downloader.next_chunk()
         
         # Extract text based on file type
         file_content = fh.getvalue()
