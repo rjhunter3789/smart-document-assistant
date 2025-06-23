@@ -247,11 +247,14 @@ def get_all_folders_recursive(service, parent_id, parent_path=""):
 def list_files(service, folder_id):
     """List files in a specific folder"""
     try:
+        st.write(f"🔍 **DEBUG:** Calling list_files with folder_id: {folder_id}")
         results = service.files().list(
             q=f"'{folder_id}' in parents and trashed=false",
             fields="files(id, name, mimeType, modifiedTime, size)"
         ).execute()
-        return results.get('files', [])
+        files = results.get('files', [])
+        st.write(f"🔍 **DEBUG:** Google Drive API returned {len(files)} files")
+        return files
     except Exception as e:
         st.error(f"Error listing files: {str(e)}")
         return []
@@ -272,20 +275,6 @@ def download_file(service, file_id, name):
     except Exception as e:
         st.error(f"Error downloading file: {str(e)}")
         return None
-
-def generate_summary(text):
-    """Generate a simple summary (lightweight version)"""
-    if not text.strip():
-        return "No readable content found."
-    
-    # Simple text truncation for demo
-    sentences = text.split('.')[:3]  # First 3 sentences
-    summary = '. '.join(sentences).strip()
-    
-    if len(summary) > 300:
-        summary = summary[:300] + "..."
-    
-    return summary if summary else "Document summary would appear here with full AI capabilities."
 
 # Demo documents for fallback
 demo_docs = [
@@ -384,14 +373,6 @@ with col2:
 # Use the combined search query
 active_query = voice_input if voice_input else filename_query
 
-# Initialize session state
-if 'current_step' not in st.session_state:
-    st.session_state.current_step = 1
-if 'selected_folder_id' not in st.session_state:
-    st.session_state.selected_folder_id = None
-if 'selected_folder_path' not in st.session_state:
-    st.session_state.selected_folder_path = None
-
 # Authentication and Google Drive setup
 try:
     service = authenticate_gdrive()
@@ -431,134 +412,53 @@ if not demo_mode and service:
                 not any(f['full_path'].startswith(p) for p in excluded_paths)
             ]
             
-            # Find team folders and WMA folders
-            team_names = ["Aaron", "Brody", "Dona", "Eric", "Grace", "Jeff", "Jessica", "Jill", "John", "Jon", "Kirk", "Owen", "Paul"]
-            wma_folders = [f for f in filtered_folders if 'WMA' in f['name']]
-            team_folders = [f for f in filtered_folders if f['name'] in team_names]
+            # Create a simplified folder selection - just show all available paths
+            folder_paths = [f['full_path'] for f in filtered_folders]
+            folder_paths.sort()
             
-            # Combine and sort available folders
-            available_folders = wma_folders + team_folders
+            st.markdown('<div class="nav-section">', unsafe_allow_html=True)
+            st.markdown('<div class="nav-title">📁 Select Your Folder</div>', unsafe_allow_html=True)
             
-            if available_folders:
-                # Step 1: Select main folder
-                folder_options = list(set([f['name'] for f in available_folders]))
-                folder_options.sort()
+            selected_folder_path = st.selectbox(
+                "Choose a folder:", 
+                folder_paths, 
+                label_visibility="collapsed"
+            )
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Get the selected folder object
+            selected_folder = next((f for f in filtered_folders if f['full_path'] == selected_folder_path), None)
+            
+            if selected_folder:
+                st.write(f"🔍 **DEBUG:** Selected folder: {selected_folder['full_path']}")
+                st.write(f"🔍 **DEBUG:** Selected folder ID: {selected_folder['id']}")
                 
-                st.markdown('<div class="nav-section">', unsafe_allow_html=True)
-                st.markdown('<div class="nav-title">📁 Step 1: Select Your Main Folder</div>', unsafe_allow_html=True)
+                st.info(f"📂 Loading files from: {selected_folder['full_path']}")
                 
-                selected_main_folder = st.selectbox(
-                    "Choose main folder:", 
-                    folder_options, 
-                    label_visibility="collapsed",
-                    key="main_folder_select"
-                )
+                with st.spinner(f"🔄 Scanning {selected_folder['full_path']}..."):
+                    docs = list_files(service, selected_folder['id'])
                 
-                st.markdown('</div>', unsafe_allow_html=True)
+                st.write(f"🔍 **DEBUG:** Retrieved {len(docs)} documents from Google Drive")
                 
-                # Step 2: Get subfolders for selected main folder
-                main_folder_subfolders = [
-                    f for f in filtered_folders 
-                    if f['full_path'].startswith(selected_main_folder + '/') or f['name'] == selected_main_folder
-                ]
-                
-                if main_folder_subfolders:
-                    # Get level 1 subfolders
-                    level_1_folders = [
-                        f for f in main_folder_subfolders 
-                        if f['full_path'].count('/') == (1 if selected_main_folder in f['full_path'] else 0) and f['name'] != selected_main_folder
-                    ]
+                if docs:
+                    st.success(f"📄 **Found {len(docs)} files in {selected_folder['name']}**")
+                    demo_mode = False
                     
-                    if level_1_folders:
-                        st.markdown('<div class="nav-section">', unsafe_allow_html=True)
-                        st.markdown('<div class="nav-title">📂 Step 2: Select Subfolder</div>', unsafe_allow_html=True)
-                        
-                        level_1_options = [f['full_path'] for f in level_1_folders]
-                        level_1_options.sort()
-                        
-                        selected_level_1 = st.selectbox(
-                            "Choose subfolder:", 
-                            level_1_options, 
-                            label_visibility="collapsed",
-                            key="level_1_select"
-                        )
-                        
-                        st.markdown('</div>', unsafe_allow_html=True)
-                        
-                        # Step 3: Get level 2 subfolders
-                        level_2_folders = [
-                            f for f in filtered_folders 
-                            if f['full_path'].startswith(selected_level_1 + '/') and f['full_path'] != selected_level_1
-                        ]
-                        
-                        if level_2_folders:
-                            # Get immediate children only (not nested deeper)
-                            immediate_level_2 = [
-                                f for f in level_2_folders 
-                                if f['full_path'].count('/') == selected_level_1.count('/') + 1
-                            ]
-                            
-                            if immediate_level_2:
-                                st.markdown('<div class="nav-section">', unsafe_allow_html=True)
-                                st.markdown('<div class="nav-title">📋 Step 3: Select Final Folder</div>', unsafe_allow_html=True)
-                                
-                                level_2_options = [f['full_path'] for f in immediate_level_2]
-                                level_2_options.sort()
-                                
-                                selected_final_folder = st.selectbox(
-                                    "Choose final folder:", 
-                                    level_2_options, 
-                                    label_visibility="collapsed",
-                                    key="final_folder_select"
-                                )
-                                
-                                st.markdown('</div>', unsafe_allow_html=True)
-                                
-                                # Set the selected folder
-                                final_folder = next((f for f in immediate_level_2 if f['full_path'] == selected_final_folder), None)
-                                if final_folder:
-                                    st.session_state.selected_folder_id = final_folder['id']
-                                    st.session_state.selected_folder_path = final_folder['full_path']
-                            else:
-                                # Use level 1 as final folder
-                                level_1_folder = next((f for f in filtered_folders if f['full_path'] == selected_level_1), None)
-                                if level_1_folder:
-                                    st.session_state.selected_folder_id = level_1_folder['id']
-                                    st.session_state.selected_folder_path = level_1_folder['full_path']
-                        else:
-                            # Use level 1 as final folder
-                            level_1_folder = next((f for f in filtered_folders if f['full_path'] == selected_level_1), None)
-                            if level_1_folder:
-                                st.session_state.selected_folder_id = level_1_folder['id']
-                                st.session_state.selected_folder_path = level_1_folder['full_path']
-                    else:
-                        # Use main folder as final folder
-                        main_folder = next((f for f in available_folders if f['name'] == selected_main_folder), None)
-                        if main_folder:
-                            st.session_state.selected_folder_id = main_folder['id']
-                            st.session_state.selected_folder_path = main_folder['full_path']
-                
-                # Now list files from selected folder
-                if st.session_state.selected_folder_id and st.session_state.selected_folder_path:
-                    st.info(f"📂 Loading files from: {st.session_state.selected_folder_path}")
+                    # Show first few file names for debugging
+                    st.write("🔍 **DEBUG:** First few files found:")
+                    for i, doc in enumerate(docs[:3]):
+                        st.write(f"  - {doc.get('name', 'Unknown')}")
+                        if i >= 2:
+                            break
                     
-                    with st.spinner(f"🔄 Scanning {st.session_state.selected_folder_path}..."):
-                        docs = list_files(service, st.session_state.selected_folder_id)
-                    
-                    if docs:
-                        st.success(f"📄 **Found {len(docs)} files in {st.session_state.selected_folder_path.split('/')[-1]}**")
-                        demo_mode = False
-                    else:
-                        st.warning(f"📄 No files found in {st.session_state.selected_folder_path}. This might be an empty folder or you might not have permission to read files.")
-                        st.info("🔄 Showing demo documents instead.")
-                        docs = demo_docs
-                        demo_mode = True
                 else:
-                    st.warning("Please select a folder to view its contents.")
+                    st.warning(f"📄 No files found in {selected_folder['full_path']}. This folder appears to be empty.")
+                    st.info("🔄 Showing demo documents instead.")
                     docs = demo_docs
                     demo_mode = True
             else:
-                st.warning("No recognized folders found (WMA folders or team folders). Showing demo documents.")
+                st.error("Could not find selected folder")
                 docs = demo_docs
                 demo_mode = True
         else:
@@ -587,13 +487,15 @@ if active_query and docs:
 
 # Display results
 st.markdown("---")
+st.write(f"🔍 **DEBUG:** About to display {len(docs)} documents, demo_mode = {demo_mode}")
+
 if docs:
     if demo_mode:
         st.markdown('<div class="results-header">📊 Demo Documents</div>', unsafe_allow_html=True)
         st.success(f"✅ Found {len(docs)} demo documents")
     else:
         st.markdown('<div class="results-header">📊 Your Google Drive Documents</div>', unsafe_allow_html=True)
-        st.success(f"✅ Found {len(docs)} documents from {st.session_state.selected_folder_path}")
+        st.success(f"✅ Found {len(docs)} documents from {selected_folder_path}")
     
     # Display each document
     for i, doc in enumerate(docs):
@@ -623,7 +525,7 @@ if docs:
                     summary = demo_summaries[i % len(demo_summaries)]
                     st.success(f"**📋 AI Summary:** {summary}")
                 else:
-                    st.success(f"**📋 Real Document Analysis:** This would analyze '{doc_name}' from your Google Drive folder '{st.session_state.selected_folder_path}' using AI!")
+                    st.success(f"**📋 Real Document Analysis:** This would analyze '{doc_name}' from your Google Drive folder '{selected_folder_path}' using AI!")
         
         with col2:
             if st.button("🔊 Read", key=f"speak_{i}", use_container_width=True):
@@ -666,8 +568,6 @@ if docs:
         st.markdown("---")
 else:
     st.warning("📄 No documents found in the selected location.")
-    if not demo_mode:
-        st.info("💡 Try selecting a different folder or check if the folder contains any files.")
 
 # Footer
 st.markdown("---")
