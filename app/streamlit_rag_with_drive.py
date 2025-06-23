@@ -222,12 +222,15 @@ def authenticate_gdrive():
         st.error(f"🚫 Authentication failed: {str(e)}")
         return None
 
-def get_all_folders_recursive(service, parent_id, parent_path=""):
-    """Recursively get all folders from Google Drive"""
+def get_all_folders_recursive(service, parent_id, parent_path="", max_depth=3):
+    """Recursively get folders with depth limit for speed"""
     folders = []
+    if parent_path.count('/') >= max_depth:  # Limit depth for speed
+        return folders
+        
     try:
         query = f"'{parent_id}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-        results = service.files().list(q=query, fields="files(id, name)", pageSize=1000).execute()
+        results = service.files().list(q=query, fields="files(id, name)", pageSize=100).execute()  # Reduced page size
         items = results.get("files", [])
 
         for item in items:
@@ -237,8 +240,9 @@ def get_all_folders_recursive(service, parent_id, parent_path=""):
                 "name": item["name"],
                 "full_path": full_path
             })
-            # Recursively get subfolders
-            folders.extend(get_all_folders_recursive(service, item["id"], full_path))
+            # Only recurse for important folders to save time
+            if any(keyword in item['name'].lower() for keyword in ['wma', 'aaron', 'jeff', 'owen', 'team']):
+                folders.extend(get_all_folders_recursive(service, item["id"], full_path, max_depth))
     except Exception as e:
         st.error(f"Error accessing folder {parent_path}: {str(e)}")
     
@@ -696,11 +700,11 @@ if voice_input:
     action = None
     search_term = None
     
-    if any(word in command_lower for word in ['summarize', 'summary', 'review']):
+    if any(word in command_lower for word in ['summarize', 'summary', 'review', 'tell me about', 'what is']):
         action = 'summarize'
-    elif any(word in command_lower for word in ['read', 'read back', 'read to me']):
+    elif any(word in command_lower for word in ['read', 'read back', 'read to me', 'play', 'speak']):
         action = 'read'
-    elif any(word in command_lower for word in ['find', 'search', 'show']):
+    elif any(word in command_lower for word in ['find', 'search', 'show', 'look for', 'get me']):
         action = 'find'
     
     # Extract search terms (remove command words)
@@ -736,7 +740,11 @@ filename_query = st.text_input(
 # Use the combined search query
 active_query = voice_input if voice_input else filename_query
 
-# Initialize session state
+# Initialize session state for caching
+if 'all_folders' not in st.session_state:
+    st.session_state.all_folders = None
+if 'folder_cache_time' not in st.session_state:
+    st.session_state.folder_cache_time = None
 if 'current_step' not in st.session_state:
     st.session_state.current_step = 1
 if 'selected_folder_id' not in st.session_state:
@@ -765,13 +773,28 @@ all_folders = []
 docs = []
 
 if not demo_mode and service:
-    # Get all folders
+    # Get all folders (with smart caching)
     try:
-        with st.spinner("🔄 Loading folder structure..."):
-            all_folders = get_all_folders_recursive(service, root_id)
+        # Check if we need to refresh cache (5 minute expiry)
+        import time
+        current_time = time.time()
+        cache_expired = (
+            st.session_state.folder_cache_time is None or 
+            current_time - st.session_state.folder_cache_time > 300  # 5 minutes
+        )
+        
+        if st.session_state.all_folders is None or cache_expired:
+            with st.spinner("🔄 Loading folder structure..."):
+                st.session_state.all_folders = get_all_folders_recursive(service, root_id)
+                st.session_state.folder_cache_time = current_time
+                st.success(f"📁 Loaded {len(st.session_state.all_folders)} folders (cached)")
+        else:
+            st.info(f"📁 Using cached folders ({len(st.session_state.all_folders)} folders)")
+            
+        all_folders = st.session_state.all_folders
         
         if all_folders:
-            st.success(f"📁 Connected! Found {len(all_folders)} folders")
+            st.success(f"📁 Ready! {len(all_folders)} folders available")
             
             # Filter out WMA Test and excluded paths
             excluded_names = ["WMA Test"]
