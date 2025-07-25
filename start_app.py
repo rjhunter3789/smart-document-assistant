@@ -26,8 +26,8 @@ def start_services():
     # Give backend time to start
     time.sleep(3)
     
-    # Start Streamlit frontend on a different port
-    streamlit_port = port + 1
+    # Start Streamlit frontend on the main port (Railway uses single port)
+    streamlit_port = port  # Use same port as Railway provides
     frontend_process = subprocess.Popen([
         sys.executable, "-m", "streamlit", "run",
         "frontend/streamlit_app.py",
