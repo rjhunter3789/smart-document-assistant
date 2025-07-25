@@ -2,6 +2,20 @@
 
 ## Version History & Complete Code Archive
 
+### Version 2.1.0 - Voice-First One-Click Interface (2025-07-25)
+
+**Major Changes:**
+- Created voice-first interface with one-click operation
+- Auto-submission after speaking (no manual submit needed)
+- Mobile-optimized with large microphone button
+- Auto-play voice responses
+- Safe for driving - minimal interaction required
+- Removed multi-step voice input process
+
+**New File:** `app_voice_simple.py` - Streamlined voice interface
+
+**Git Commit:** `voice-first-interface`
+
 ### Version 2.0.0 - Voice-Enabled Hybrid Architecture (2025-07-25)
 
 **Major Changes:**
@@ -659,6 +673,47 @@ answer = await process_with_llamaindex(request.question)
 - [ ] Custom voice training
 - [ ] Webhook notifications
 - [ ] Analytics dashboard
+
+---
+
+---
+
+## Latest Code Snapshot (v2.1.0)
+
+### Voice-First App (app_voice_simple.py)
+```python
+"""
+Smart Document Assistant - Simplified Voice-First Interface
+One-click voice input that auto-submits when you're done speaking
+"""
+import streamlit as st
+import os
+from gtts import gTTS
+import io
+import time
+
+st.set_page_config(
+    page_title="Smart Document Assistant",
+    page_icon="🎙️",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+# [Full code in app_voice_simple.py]
+```
+
+### Key Features of v2.1.0:
+1. **One-Click Voice Input**: Large microphone button - tap once to start
+2. **Auto-Submit**: Automatically processes when you stop speaking
+3. **Auto-Play Response**: Voice response plays immediately
+4. **Mobile-First**: Huge button for easy access while driving
+5. **Visual Feedback**: Button pulses while listening
+6. **Error Recovery**: Clear status messages and easy retry
+
+### Deployment Command:
+```bash
+streamlit run app_voice_simple.py --server.port $PORT --server.address 0.0.0.0
+```
 
 ---
 
