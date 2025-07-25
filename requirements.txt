@@ -12,19 +12,22 @@ SpeechRecognition==3.10.0
 pyaudio==0.2.13
 streamlit-webrtc==0.47.1
 
-# Document processing (to be added when integrating with existing code)
-# llama-index==0.9.13
-# langchain==0.0.340
-# sentence-transformers==2.2.2
-# faiss-cpu==1.7.4
-# PyMuPDF==1.23.8
-# python-docx==1.1.0
+# Document processing (from existing app)
+sentence-transformers
+transformers
+torch
+PyMuPDF
+python-docx
+numpy
+Pillow
+pandas>=1.5.0
+openpyxl>=3.0.9
 
-# Google Drive integration (to be added)
-# google-api-python-client==2.108.0
-# google-auth==2.23.4
-# google-auth-oauthlib==1.1.0
-# google-auth-httplib2==0.1.1
+# Google Drive integration
+google-api-python-client
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
 
 # Utils
 python-dotenv==1.0.0
