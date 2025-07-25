@@ -2,6 +2,30 @@
 
 ## Version History & Complete Code Archive
 
+### Version 3.0.0 - Siri/Google Assistant Integration (2025-07-25)
+
+**GAME CHANGER - True Hands-Free Operation**
+
+**Major Features:**
+- Direct integration with Siri Shortcuts (iPhone)
+- Google Assistant compatible (Android)
+- Zero taps required - just speak to Siri/Google
+- URL parameter support for voice queries
+- Auto-plays audio response
+- Perfect for driving - completely hands-free
+
+**How it Works:**
+1. Create a Siri Shortcut once
+2. Say: "Hey Siri, ask document assistant to [your question]"
+3. App opens, processes, and speaks the answer
+4. No taps, no buttons - pure voice
+
+**Technical Implementation:**
+- Uses URL parameters (?q=your+question)
+- Auto-processes on page load
+- Returns voice response immediately
+- Maintains conversation history
+
 ### Version 2.3.0 - Voice Trigger Word "GO" (2025-07-25)
 
 **Major Changes:**
