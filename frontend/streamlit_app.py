@@ -4,8 +4,8 @@ Streamlit frontend for Smart Document Assistant with Voice Input/Output
 import streamlit as st
 import requests
 import base64
-from streamlit_webrtc import webrtc_streamer, WebRtcMode
-import speech_recognition as sr
+# from streamlit_webrtc import webrtc_streamer, WebRtcMode  # Optional - removed
+# import speech_recognition as sr  # Optional - removed for Railway deployment
 import tempfile
 import os
 import json
@@ -63,22 +63,8 @@ if 'audio_data' not in st.session_state:
     st.session_state.audio_data = None
 
 def record_audio_with_speech_recognition():
-    """Record audio using speech_recognition library"""
-    r = sr.Recognizer()
-    with sr.Microphone() as source:
-        st.info("🎙️ Listening... Speak now!")
-        r.adjust_for_ambient_noise(source, duration=0.5)
-        try:
-            audio = r.listen(source, timeout=5, phrase_time_limit=10)
-            # Try Google Speech Recognition
-            text = r.recognize_google(audio)
-            return text
-        except sr.UnknownValueError:
-            return "Could not understand audio"
-        except sr.RequestError as e:
-            return f"Error: {e}"
-        except sr.WaitTimeoutError:
-            return "No speech detected"
+    """Placeholder for audio recording - use browser speech API instead"""
+    return "Please use the browser voice input below"
 
 def send_question_to_backend(question: str, voice_enabled: bool = True) -> dict:
     """Send question to FastAPI backend and get response"""
