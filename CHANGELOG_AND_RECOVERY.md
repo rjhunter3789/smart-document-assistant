@@ -2,6 +2,30 @@
 
 ## Version History & Complete Code Archive
 
+### Version 2.3.0 - Voice Trigger Word "GO" (2025-07-25)
+
+**Major Changes:**
+- Added verbal trigger word "GO" to submit questions
+- Prevents accidental submissions during natural pauses
+- Truly hands-free operation perfect for driving
+- Trigger word is removed from the actual query
+- Manual submit button still available as backup
+
+**Usage Example:** "Summarize the Q2 report for Wendell Ford GO"
+
+**Key Innovation:** Verbal command submission without accidental triggers
+
+### Version 2.2.0 - Final Reliable Voice Interface (2025-07-25)
+
+**Major Changes:**
+- Simplified to use native mobile keyboard microphone (most reliable)
+- Clear instructions for both mobile and desktop
+- Removed complex JavaScript that Streamlit was blocking
+- Added clipboard copy for desktop voice input
+- Stable, works on all devices
+
+**Key Learning:** Mobile keyboard microphone is the most reliable voice input method
+
 ### Version 2.1.0 - Voice-First One-Click Interface (2025-07-25)
 
 **Major Changes:**
