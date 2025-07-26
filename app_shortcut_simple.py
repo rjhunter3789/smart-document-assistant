@@ -35,8 +35,8 @@ def search_local_docs(query):
         return f"No specific information found about '{query}' in the documents. Please try a different search term."
 
 # Hide Streamlit UI when URL parameter is present
-query_params = st.query_params
-voice_query = query_params.get("q", "")
+query_params = st.experimental_get_query_params()
+voice_query = query_params.get("q", [""])[0]
 
 if voice_query:
     # For URL parameters, search docs and return plain text
