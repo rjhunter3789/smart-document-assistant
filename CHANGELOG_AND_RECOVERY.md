@@ -765,5 +765,130 @@ streamlit run app_voice_simple.py --server.port $PORT --server.address 0.0.0.0
 
 ---
 
-Last Updated: 2025-07-25
+### Version 3.1.0 - Working Shortcuts Integration (2025-07-26)
+
+**BREAKTHROUGH - Actually Working Voice Shortcuts**
+
+**Major Changes:**
+- Replaced Siri integration with iOS Dictate Text shortcuts
+- Fixed HTML response issue - now returns plain text
+- Connected to local document search (app/docs folder)
+- Simplified app architecture for reliability
+- Works with iPhone 15 Pro Max / iOS 18.5
+
+**Technical Details:**
+- Uses `app_shortcut_simple.py` for plain text responses
+- Searches .txt files in app/docs folder
+- Returns snippets of matching content
+- Shortcuts flow: Dictate → URL → Get Contents → Extract Text → Speak
+
+**Key Files:**
+- `app_shortcut_simple.py` - Main shortcuts handler
+- `Procfile` - Points to shortcut app
+- Local docs in `app/docs/*.txt`
+
+**Working Shortcut Configuration:**
+1. Dictate Text (with "Tap" stop listening)
+2. URL: https://web-production-5c94.up.railway.app?q=[Dictated Text]
+3. Get Contents of URL
+4. Get Text from Input
+5. Speak Text
+
+**Git Commits:**
+- `Switch to URL parameter app for Shortcuts compatibility`
+- `Add simple plain text response app for Shortcuts`
+- `Connect document search to Shortcuts app`
+
+---
+
+## Complete Code Snapshot (v3.1.0)
+
+### Working Shortcuts App (app_shortcut_simple.py)
+```python
+"""
+Simple URL parameter handler for Shortcuts
+Returns PLAIN TEXT instead of HTML when ?q= parameter is present
+"""
+import streamlit as st
+from datetime import datetime
+import os
+
+# Simple document search function
+def search_local_docs(query):
+    """Search through local documents in app/docs folder"""
+    docs_path = "app/docs"
+    results = []
+    
+    if os.path.exists(docs_path):
+        for filename in os.listdir(docs_path):
+            if filename.endswith('.txt'):
+                filepath = os.path.join(docs_path, filename)
+                try:
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                        if query.lower() in content.lower():
+                            # Extract relevant snippet
+                            index = content.lower().find(query.lower())
+                            start = max(0, index - 100)
+                            end = min(len(content), index + 200)
+                            snippet = content[start:end].strip()
+                            results.append(f"From {filename}: ...{snippet}...")
+                except:
+                    pass
+    
+    if results:
+        return " ".join(results[:2])  # Return first 2 results
+    else:
+        return f"No specific information found about '{query}' in the documents. Please try a different search term."
+
+# Hide Streamlit UI when URL parameter is present
+query_params = st.query_params
+voice_query = query_params.get("q", "")
+
+if voice_query:
+    # For URL parameters, search docs and return plain text
+    answer = search_local_docs(voice_query)
+    
+    # Display as plain text for Shortcuts to speak
+    st.text(answer)
+else:
+    # Normal web interface
+    st.title("Smart Document Assistant")
+    st.write("Add ?q=your+question to the URL to get a response")
+    
+    # Show available documents
+    if os.path.exists("app/docs"):
+        st.write("Available documents:")
+        for f in os.listdir("app/docs"):
+            if f.endswith('.txt'):
+                st.write(f"- {f}")
+```
+
+### Deployment (Procfile)
+```
+web: streamlit run app_shortcut_simple.py --server.port $PORT --server.address 0.0.0.0
+```
+
+---
+
+## Troubleshooting Shortcuts (v3.1.0)
+
+### If no voice response:
+1. Check Railway deployment is active
+2. Test URL in browser: `https://web-production-5c94.up.railway.app?q=test`
+3. Ensure "Get Text from Input" is between Get Contents and Speak
+4. Verify Speak uses "Text" not "Contents of URL"
+
+### If getting HTML instead of text:
+- Add "Get Text from Input" action after Get Contents
+- Make sure app_shortcut_simple.py is deployed (check Procfile)
+
+### Testing document search:
+- Documents must be .txt files in app/docs folder
+- Try queries like "AI agent", "Ford", "sales journey"
+- App returns first 2 matching snippets
+
+---
+
+Last Updated: 2025-07-26
 Maintained by: Jeff Hunter (rjhunter3789)
