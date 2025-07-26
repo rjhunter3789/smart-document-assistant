@@ -101,6 +101,12 @@ def api_search_text():
     answer = search_local_docs(query)
     return answer, 200, {'Content-Type': 'text/plain; charset=utf-8'}
 
+@app.route('/health')
+def health():
+    """Health check endpoint for Railway"""
+    return 'OK', 200
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
+    print(f"Starting Flask on port {port}")
     app.run(host='0.0.0.0', port=port)
