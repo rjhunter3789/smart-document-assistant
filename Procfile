@@ -1,1 +1,1 @@
-web: python app_flask_drive.py
+web: python3 app_flask_drive.py
