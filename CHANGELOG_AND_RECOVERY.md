@@ -2,6 +2,34 @@
 
 ## Version History & Complete Code Archive
 
+### Version 3.3.0 - Google Drive Integration Complete (2025-07-26)
+
+**FINAL MILESTONE - Full Google Drive Search via iOS Shortcuts!**
+
+**Major Features:**
+- Complete Google Drive integration with OAuth 2.0
+- Searches both local files AND Google Drive documents
+- Supports PDF, DOCX, TXT, and Google Docs formats
+- Auto-refreshes expired tokens
+- Works seamlessly with iOS Shortcuts
+
+**Technical Implementation:**
+- New `app_flask_drive.py` with Drive API integration
+- OAuth 2.0 authentication with refresh token support
+- Environment variables for Railway deployment:
+  - GOOGLE_CLIENT_ID
+  - GOOGLE_CLIENT_SECRET
+  - GOOGLE_REFRESH_TOKEN
+  - GOOGLE_TOKEN
+- Status endpoint at `/api/status` to check Drive connection
+- Maintains all existing iOS Shortcuts compatibility
+
+**Setup Requirements:**
+- Google Cloud Console project with Drive API enabled
+- OAuth 2.0 credentials configured
+- Environment variables set in Railway
+- See GOOGLE_DRIVE_SETUP.md for complete instructions
+
 ### Version 3.2.0 - Flask API with Working iOS Shortcuts (2025-07-26)
 
 **BREAKTHROUGH - iOS Shortcuts Finally Working!**
