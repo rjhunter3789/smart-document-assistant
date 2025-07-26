@@ -34,16 +34,36 @@ def search_local_docs(query):
     else:
         return f"No specific information found about '{query}' in the documents. Please try a different search term."
 
-# Hide Streamlit UI when URL parameter is present
-query_params = st.experimental_get_query_params()
-voice_query = query_params.get("q", [""])[0]
+# Get query parameter using multiple methods for compatibility
+voice_query = ""
+
+# Try new Streamlit API first
+try:
+    voice_query = st.query_params.get("q", "")
+except:
+    # Fall back to old API
+    try:
+        query_params = st.experimental_get_query_params()
+        voice_query = query_params.get("q", [""])[0]
+    except:
+        pass
+
+# URL decode if needed
+if voice_query:
+    from urllib.parse import unquote
+    voice_query = unquote(voice_query)
 
 if voice_query:
     # For URL parameters, search docs and return plain text
     answer = search_local_docs(voice_query)
     
     # Display as plain text for Shortcuts to speak
+    # Using st.text() for pure text output
     st.text(answer)
+    
+    # Add a minimal separator and query info
+    st.text("---")
+    st.text(f"Query: {voice_query}")
 else:
     # Normal web interface
     st.title("Smart Document Assistant v3.1.1")
