@@ -66,6 +66,8 @@ def search_google_drive(query, service):
         return []
     
     results = []
+    seen_snippets = set()  # Track unique content
+    
     try:
         # Search for files containing the query in name or content
         search_query = f"(name contains '{query}' or fullText contains '{query}') and trashed = false"
@@ -73,12 +75,12 @@ def search_google_drive(query, service):
         response = service.files().list(
             q=search_query,
             fields="files(id, name, mimeType, modifiedTime)",
-            pageSize=10
+            pageSize=5  # Reduced from 10 to limit results
         ).execute()
         
         files = response.get('files', [])
         
-        for file in files:
+        for file in files[:3]:  # Only process first 3 files
             # Get file content based on type
             content = extract_text_from_drive_file(file['id'], file['mimeType'], service)
             if content and query.lower() in content.lower():
@@ -87,7 +89,12 @@ def search_google_drive(query, service):
                 start = max(0, index - 100)
                 end = min(len(content), index + 200)
                 snippet = content[start:end].strip()
-                results.append(f"From Drive - {file['name']}: ...{snippet}...")
+                
+                # Only add if we haven't seen this exact snippet
+                snippet_key = snippet[:100]  # Use first 100 chars as key
+                if snippet_key not in seen_snippets:
+                    seen_snippets.add(snippet_key)
+                    results.append(f"From Drive - {file['name']}: ...{snippet}...")
                 
     except Exception as e:
         print(f"Drive search error: {e}")
