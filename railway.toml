@@ -2,4 +2,4 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "streamlit run app_shortcut_simple.py --server.port $PORT --server.address 0.0.0.0"
+startCommand = "python simple_server.py"
