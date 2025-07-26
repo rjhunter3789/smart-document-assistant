@@ -46,7 +46,7 @@ if voice_query:
     st.text(answer)
 else:
     # Normal web interface
-    st.title("Smart Document Assistant")
+    st.title("Smart Document Assistant v3.1.1")
     st.write("Add ?q=your+question to the URL to get a response")
     
     # Show available documents
