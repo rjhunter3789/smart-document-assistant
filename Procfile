@@ -1,1 +1,1 @@
-web: streamlit run app_shortcut_simple.py --server.port $PORT --server.address 0.0.0.0
+web: python app_flask.py
