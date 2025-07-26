@@ -891,4 +891,12 @@ web: streamlit run app_shortcut_simple.py --server.port $PORT --server.address 0
 ---
 
 Last Updated: 2025-07-26
-Maintained by: Jeff Hunter (rjhunter3789)
+Maintained by: Jeff Hunter (rjhunter3789) 
+### Version 3.1.1 - Sat 07/26/2025 
+ 
+**Changes:** 
+- Added automatic changelog update script 
+ 
+**Commit:** 
+- f3c6c4b - Update changelog for v3.1.0 - Working Shortcuts Integration 
+ 
