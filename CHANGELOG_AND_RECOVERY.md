@@ -2,6 +2,38 @@
 
 ## Version History & Complete Code Archive
 
+### Version 3.2.0 - Flask API with Working iOS Shortcuts (2025-07-26)
+
+**BREAKTHROUGH - iOS Shortcuts Finally Working!**
+
+**Major Features:**
+- Replaced Streamlit with Flask for true API endpoints
+- iOS Shortcuts can now parse responses correctly
+- Plain text API endpoint at `/api/search/text`
+- Two-tap operation: dictate, then hear response
+- Successfully searches and returns document content
+
+**Technical Implementation:**
+- Flask app serving multiple endpoints:
+  - `/` - Browser interface
+  - `/api/search` - JSON/text response
+  - `/api/search/text` - Pure text for iOS
+- Embedded search function directly in Flask
+- Uses Railway's PORT environment variable
+- Returns plain text without HTML wrapper
+
+**iOS Shortcut Setup:**
+1. Dictate text
+2. Get contents of URL: `https://web-production-5c94.up.railway.app/api/search/text?q=[Dictated Text]`
+3. Show in Quick Look (optional for debugging)
+4. Get text from Contents of URL
+5. Speak Text
+
+**Key Files:**
+- `app_flask.py` - Flask API server
+- `Procfile` - Points to Flask app
+- Documents in `app/docs/*.txt`
+
 ### Version 3.0.0 - Siri/Google Assistant Integration (2025-07-25)
 
 **GAME CHANGER - True Hands-Free Operation**
