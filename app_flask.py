@@ -94,7 +94,9 @@ def search_google_drive(query, service):
                 snippet_key = snippet[:100]  # Use first 100 chars as key
                 if snippet_key not in seen_snippets:
                     seen_snippets.add(snippet_key)
-                    results.append(f"From Drive - {file['name']}: ...{snippet}...")
+                    # Clean snippet - remove ellipsis for cleaner speech
+                    clean_snippet = snippet.replace('...', ' ')
+                    results.append(clean_snippet)
                 
     except Exception as e:
         print(f"Drive search error: {e}")
@@ -162,7 +164,9 @@ def search_local_docs(query):
                             start = max(0, index - 100)
                             end = min(len(content), index + 200)
                             snippet = content[start:end].strip()
-                            results.append(f"From {filename}: ...{snippet}...")
+                            # Clean snippet for speech
+                            clean_snippet = snippet.replace('...', ' ')
+                            results.append(clean_snippet)
                 except:
                     pass
     
@@ -187,7 +191,8 @@ def search_all_sources(query):
     if not results:
         return f"No information found about '{query}' in documents."
     
-    return "\n\n".join(results)
+    # Add separator for clearer speech
+    return "\n\n---\n\n".join(results)
 
 @app.route('/')
 def home():
