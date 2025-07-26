@@ -22,8 +22,11 @@ if 'history' not in st.session_state:
     st.session_state.history = []
 
 def generate_answer(question: str) -> str:
-    """Generate answer - placeholder for your RAG logic"""
-    return f"Based on your documents, here's what I found about '{question}': This is a placeholder response. In the full implementation, this will query your Google Drive documents and provide a relevant summary."
+    """Generate answer using actual RAG logic"""
+    # TODO: Import and use the actual RAG implementation from streamlit_rag_with_drive.py
+    # For now, this is a placeholder that needs to be connected to your existing RAG system
+    # The RAG system in app/streamlit_rag_with_drive.py has Google Drive integration
+    return f"Based on your documents, here's what I found about '{question}': This is a placeholder response. Your RAG system exists in app/streamlit_rag_with_drive.py but needs to be integrated here."
 
 def text_to_speech(text: str) -> bytes:
     """Convert text to speech using gTTS"""
