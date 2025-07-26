@@ -54,8 +54,10 @@ if query:
     # Hide all UI and show only text
     st.markdown(hide_streamlit_style, unsafe_allow_html=True)
     answer = search_local_docs(query)
-    # Use markdown with plain text for iOS
-    st.markdown(answer)
+    # Use container for clean output
+    container = st.container()
+    with container:
+        st.text(answer)  # Plain text for iOS
 else:
     # Normal interface
     st.title("Smart Document Assistant")
