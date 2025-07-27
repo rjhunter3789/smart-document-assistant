@@ -1,17 +1,14 @@
 #!/usr/bin/env python3
 """
-Flask app with Google Drive integration, OpenAI GPT-4o-mini, and User Authentication
+Flask app with Google Drive integration and OpenAI GPT-4o-mini
 Searches documents and provides intelligent AI summaries with user-specific folder prioritization
-Version: 4.0.0-Authentication
+Version: 3.4.0-User-Folders
 """
-from flask import Flask, request, jsonify, render_template_string, redirect, url_for, session
-from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
-from functools import wraps
+from flask import Flask, request, jsonify
 import os
 import json
 import io
-from datetime import datetime, timedelta
+from datetime import datetime
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
@@ -22,45 +19,52 @@ import openai
 from openai import OpenAI
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-in-production')
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
-
-# Initialize Flask-Login
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'login'
 
 # Initialize OpenAI (API key from environment)
 openai_client = None
 api_key = os.environ.get('OPENAI_API_KEY')
 
 # Workaround for Railway's proxy injection issue
+# Remove all proxy-related environment variables before importing httpx
 proxy_vars = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 
               'NO_PROXY', 'no_proxy', 'ALL_PROXY', 'all_proxy']
 saved_proxies = {}
 for var in proxy_vars:
     if var in os.environ:
         saved_proxies[var] = os.environ.pop(var)
+        print(f"Temporarily removed {var} from environment")
 
 if api_key:
+    print(f"OpenAI API key found: {api_key[:10]}... (length: {len(api_key)})")
     try:
+        # Import httpx and create client without proxies
         import httpx
+        
+        # Create a custom httpx client without proxy support
         custom_http_client = httpx.Client(
-            trust_env=False,
+            trust_env=False,  # This disables reading proxy from environment
             timeout=httpx.Timeout(60.0)
         )
+        
+        # Initialize OpenAI with custom http client
         openai_client = OpenAI(
             api_key=api_key,
             http_client=custom_http_client
         )
-        print("OpenAI client initialized successfully")
+        print("OpenAI client initialized successfully with custom http client")
+        
     except Exception as e:
-        print(f"Failed to initialize OpenAI client: {e}")
+        print(f"Failed to initialize OpenAI client: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
         openai_client = None
 
-# Restore proxy variables
+# Restore proxy variables for other parts of the app
 for var, value in saved_proxies.items():
     os.environ[var] = value
+    
+if not api_key:
+    print("No OPENAI_API_KEY found in environment")
 
 # Google Drive configuration
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
@@ -76,31 +80,8 @@ except Exception as e:
     SEARCH_CONFIG = {
         'user_folders': {},
         'default_team_folder': '1INF091UIAoK87SIVzN4MpeUERyAyO-w4',
-        'search_weights': {'user_folder': 2.0, 'team_folder': 1.0},
-        'users': {}
+        'search_weights': {'user_folder': 2.0, 'team_folder': 1.0}
     }
-
-# User class for Flask-Login
-class User(UserMixin):
-    def __init__(self, username):
-        self.id = username
-        self.username = username
-        self.is_admin = username == 'Jeff'
-
-@login_manager.user_loader
-def load_user(username):
-    if username in SEARCH_CONFIG.get('users', {}):
-        return User(username)
-    return None
-
-def admin_required(f):
-    @wraps(f)
-    @login_required
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_admin:
-            return 'Unauthorized', 403
-        return f(*args, **kwargs)
-    return decorated_function
 
 def get_google_credentials():
     """Get Google credentials from environment variables or file"""
@@ -344,7 +325,7 @@ def ai_summarize(query, documents):
         source_info = f" (from {doc.get('source', 'documents')})" if 'source' in doc else ""
         context += f"Document {i} - {doc['filename']}{source_info}:\n{doc['content']}\n\n"
     
-    # Create prompt
+    # Create prompt for Claude
     prompt = f"""Based on the documents provided, please give a clear, concise answer to this query: "{query}"
 
 Instructions:
@@ -371,7 +352,7 @@ Focus on providing clear, actionable insights from the documents provided."""
         full_prompt = context + "\n" + prompt
         
         response = openai_client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o-mini",  # Fast and affordable
             messages=[
                 {"role": "system", "content": system_message},
                 {"role": "user", "content": full_prompt}
@@ -407,193 +388,70 @@ def search_all_sources(query, user=None):
     # Use AI to summarize findings
     return ai_summarize(query, all_documents)
 
-# HTML Templates
-LOGIN_TEMPLATE = '''
-<html>
-    <head>
-        <title>Smart Document Assistant - Login</title>
-        <style>
-            body { font-family: Arial, sans-serif; max-width: 400px; margin: 100px auto; padding: 20px; }
-            h1 { color: #333; text-align: center; }
-            form { background: #f0f0f0; padding: 30px; border-radius: 5px; }
-            input { width: 100%; padding: 10px; margin: 10px 0; font-size: 16px; box-sizing: border-box; }
-            button { width: 100%; padding: 10px; font-size: 16px; background: #007bff; color: white; border: none; cursor: pointer; }
-            button:hover { background: #0056b3; }
-            .error { color: red; text-align: center; margin: 10px 0; }
-        </style>
-    </head>
-    <body>
-        <h1>Smart Document Assistant</h1>
-        <form method="post">
-            <h2>Login</h2>
-            {% if error %}
-            <div class="error">{{ error }}</div>
-            {% endif %}
-            <input type="text" name="username" placeholder="Username" required autofocus>
-            <input type="password" name="password" placeholder="Password" required>
-            <button type="submit">Login</button>
-        </form>
-    </body>
-</html>
-'''
-
-HOME_TEMPLATE = '''
-<html>
-    <head>
-        <title>Smart Document Assistant</title>
-        <style>
-            body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-            h1 { color: #333; }
-            .user-info { float: right; padding: 10px; background: #f0f0f0; border-radius: 5px; }
-            .user-info a { color: #007bff; text-decoration: none; margin-left: 10px; }
-            input { width: 400px; padding: 10px; font-size: 16px; }
-            button { padding: 10px 20px; font-size: 16px; background: #007bff; color: white; border: none; cursor: pointer; }
-            button:hover { background: #0056b3; }
-            .status { margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 5px; }
-            .clear { clear: both; }
-        </style>
-    </head>
-    <body>
-        <div class="user-info">
-            Welcome, {{ current_user.username }}
-            {% if current_user.is_admin %}
-            | <a href="/admin">Admin Panel</a>
-            {% endif %}
-            | <a href="/logout">Logout</a>
-        </div>
-        <div class="clear"></div>
-        <h1>Smart Document Assistant with AI</h1>
-        <form action="/search" method="get">
-            <input type="text" name="q" placeholder="Ask a question..." required>
-            <button type="submit">Search</button>
-        </form>
-        <div class="status">
-            <p><strong>Status:</strong></p>
-            <ul>
-                <li>Google Drive: <span id="drive-status">Checking...</span></li>
-                <li>AI (OpenAI GPT-4o-mini): <span id="ai-status">Checking...</span></li>
-            </ul>
-        </div>
-        <script>
-            fetch('/api/status').then(r => r.json()).then(data => {
-                document.getElementById('drive-status').textContent = data.google_drive || 'Not configured';
-                document.getElementById('ai-status').textContent = data.ai_enabled ? 'GPT Connected' : 'Not configured';
-            });
-        </script>
-    </body>
-</html>
-'''
-
-ADMIN_TEMPLATE = '''
-<html>
-    <head>
-        <title>Admin Panel - Smart Document Assistant</title>
-        <style>
-            body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-            h1 { color: #333; }
-            .back { float: right; color: #007bff; text-decoration: none; }
-            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-            th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-            th { background: #f0f0f0; }
-            .add-user { background: #f9f9f9; padding: 20px; border-radius: 5px; margin: 20px 0; }
-            input { padding: 8px; margin: 5px; }
-            button { padding: 8px 16px; background: #007bff; color: white; border: none; cursor: pointer; }
-            button:hover { background: #0056b3; }
-            .delete { background: #dc3545; }
-            .delete:hover { background: #c82333; }
-            .message { padding: 10px; margin: 10px 0; border-radius: 5px; }
-            .success { background: #d4edda; color: #155724; }
-            .error { background: #f8d7da; color: #721c24; }
-        </style>
-    </head>
-    <body>
-        <a href="/" class="back">← Back to Search</a>
-        <h1>Admin Panel</h1>
-        
-        {% if message %}
-        <div class="message {{ message_type }}">{{ message }}</div>
-        {% endif %}
-        
-        <div class="add-user">
-            <h2>Add New User</h2>
-            <form method="post" action="/admin/add-user">
-                <input type="text" name="username" placeholder="Username" required>
-                <input type="password" name="password" placeholder="Password" required>
-                <input type="text" name="folder_id" placeholder="Google Drive Folder ID (optional)">
-                <button type="submit">Add User</button>
-            </form>
-        </div>
-        
-        <h2>Current Users</h2>
-        <table>
-            <tr>
-                <th>Username</th>
-                <th>Has Folder</th>
-                <th>Actions</th>
-            </tr>
-            {% for username in users %}
-            <tr>
-                <td>{{ username }}</td>
-                <td>{{ 'Yes' if username in user_folders else 'No' }}</td>
-                <td>
-                    {% if username != 'Jeff' %}
-                    <form method="post" action="/admin/delete-user" style="display: inline;">
-                        <input type="hidden" name="username" value="{{ username }}">
-                        <button type="submit" class="delete" onclick="return confirm('Delete user {{ username }}?')">Delete</button>
-                    </form>
-                    {% else %}
-                    <em>Admin</em>
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </table>
-    </body>
-</html>
-'''
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    """Login page"""
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
-        users = SEARCH_CONFIG.get('users', {})
-        if username in users and check_password_hash(users[username]['password'], password):
-            user = User(username)
-            login_user(user, remember=True)
-            session.permanent = True
-            next_page = request.args.get('next')
-            return redirect(next_page or url_for('home'))
-        else:
-            return render_template_string(LOGIN_TEMPLATE, error='Invalid username or password')
-    
-    return render_template_string(LOGIN_TEMPLATE)
-
-@app.route('/logout')
-@login_required
-def logout():
-    """Logout the user"""
-    logout_user()
-    return redirect(url_for('login'))
-
 @app.route('/')
-@login_required
 def home():
-    """Main search interface - requires login"""
-    return render_template_string(HOME_TEMPLATE)
+    """Simple HTML interface for browser testing"""
+    return '''
+    <html>
+        <head>
+            <title>Smart Document Assistant</title>
+            <style>
+                body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+                h1 { color: #333; }
+                input { width: 400px; padding: 10px; font-size: 16px; }
+                button { padding: 10px 20px; font-size: 16px; background: #007bff; color: white; border: none; cursor: pointer; }
+                button:hover { background: #0056b3; }
+                .status { margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 5px; }
+            </style>
+        </head>
+        <body>
+            <h1>Smart Document Assistant with AI</h1>
+            <form action="/search" method="get">
+                <input type="text" name="q" placeholder="Ask a question..." required>
+                <select name="user" style="padding: 10px; font-size: 16px; margin-left: 10px;">
+                    <option value="">All Documents</option>
+                    <option value="Aaron">Aaron</option>
+                    <option value="Brody">Brody</option>
+                    <option value="Dona">Dona</option>
+                    <option value="Eric">Eric</option>
+                    <option value="Grace">Grace</option>
+                    <option value="Jeff">Jeff</option>
+                    <option value="Jessica">Jessica</option>
+                    <option value="Jill">Jill</option>
+                    <option value="John">John</option>
+                    <option value="Jon">Jon</option>
+                    <option value="Kirk">Kirk</option>
+                    <option value="Owen">Owen</option>
+                    <option value="Paul">Paul</option>
+                </select>
+                <button type="submit">Search</button>
+            </form>
+            <div class="status">
+                <p><strong>Status:</strong></p>
+                <ul>
+                    <li>Google Drive: <span id="drive-status">Checking...</span></li>
+                    <li>AI (OpenAI GPT-4o-mini): <span id="ai-status">Checking...</span></li>
+                </ul>
+            </div>
+            <script>
+                fetch('/api/status').then(r => r.json()).then(data => {
+                    document.getElementById('drive-status').textContent = data.google_drive || 'Not configured';
+                    document.getElementById('ai-status').textContent = data.ai_enabled ? 'GPT Connected' : 'Not configured';
+                });
+            </script>
+        </body>
+    </html>
+    '''
 
 @app.route('/search')
-@login_required
 def search():
     """Browser-friendly search endpoint"""
     query = request.args.get('q', '')
+    user = request.args.get('user', '')
     if not query:
         return '<p>Please provide a search query</p>'
     
-    # Always search using the logged-in user's folder
-    answer = search_all_sources(query, current_user.username)
+    answer = search_all_sources(query, user)
     return f'''
     <html>
         <head>
@@ -606,7 +464,7 @@ def search():
         </head>
         <body>
             <h2>Question: {query}</h2>
-            <p><em>Searching {current_user.username}'s documents and WMA Team folder...</em></p>
+            {f'<p><em>Searching {user}\'s documents first...</em></p>' if user else ''}
             <div class="answer">
                 {answer.replace(chr(10), '<br>')}
             </div>
@@ -615,112 +473,13 @@ def search():
     </html>
     '''
 
-@app.route('/admin')
-@admin_required
-def admin():
-    """Admin panel for managing users"""
-    users = list(SEARCH_CONFIG.get('users', {}).keys())
-    user_folders = SEARCH_CONFIG.get('user_folders', {})
-    
-    message = request.args.get('message')
-    message_type = request.args.get('message_type', 'success')
-    
-    return render_template_string(ADMIN_TEMPLATE, 
-                                users=users, 
-                                user_folders=user_folders,
-                                message=message,
-                                message_type=message_type)
-
-@app.route('/admin/add-user', methods=['POST'])
-@admin_required
-def add_user():
-    """Add a new user"""
-    username = request.form.get('username')
-    password = request.form.get('password')
-    folder_id = request.form.get('folder_id')
-    
-    if not username or not password:
-        return redirect(url_for('admin', message='Username and password required', message_type='error'))
-    
-    # Load current config
-    config = SEARCH_CONFIG.copy()
-    
-    # Add user with hashed password
-    if 'users' not in config:
-        config['users'] = {}
-    
-    config['users'][username] = {
-        'password': generate_password_hash(password)
-    }
-    
-    # Add folder mapping if provided
-    if folder_id:
-        if 'user_folders' not in config:
-            config['user_folders'] = {}
-        config['user_folders'][username] = folder_id
-    
-    # Save config
-    try:
-        with open('search_config.json', 'w') as f:
-            json.dump(config, f, indent=2)
-        
-        # Update global config
-        global SEARCH_CONFIG
-        SEARCH_CONFIG = config
-        
-        return redirect(url_for('admin', message=f'User {username} added successfully'))
-    except Exception as e:
-        return redirect(url_for('admin', message=f'Error saving config: {e}', message_type='error'))
-
-@app.route('/admin/delete-user', methods=['POST'])
-@admin_required
-def delete_user():
-    """Delete a user"""
-    username = request.form.get('username')
-    
-    if username == 'Jeff':
-        return redirect(url_for('admin', message='Cannot delete admin user', message_type='error'))
-    
-    # Load current config
-    config = SEARCH_CONFIG.copy()
-    
-    # Remove user
-    if username in config.get('users', {}):
-        del config['users'][username]
-    
-    # Remove folder mapping
-    if username in config.get('user_folders', {}):
-        del config['user_folders'][username]
-    
-    # Save config
-    try:
-        with open('search_config.json', 'w') as f:
-            json.dump(config, f, indent=2)
-        
-        # Update global config
-        global SEARCH_CONFIG
-        SEARCH_CONFIG = config
-        
-        return redirect(url_for('admin', message=f'User {username} deleted'))
-    except Exception as e:
-        return redirect(url_for('admin', message=f'Error saving config: {e}', message_type='error'))
-
-# API Endpoints - maintain backward compatibility
 @app.route('/api/search')
 def api_search():
-    """API endpoint - supports both authenticated and user parameter"""
+    """API endpoint - returns JSON or plain text"""
     query = request.args.get('q', '')
     user = request.args.get('user', '')
-    
     if not query:
         return 'Please provide a search query', 400
-    
-    # If authenticated via web, use current user
-    if current_user.is_authenticated:
-        user = current_user.username
-    # Otherwise, use the user parameter (for iOS shortcuts)
-    elif not user:
-        return 'User parameter required for API access', 401
     
     answer = search_all_sources(query, user)
     
@@ -741,15 +500,8 @@ def api_search_text():
     """Pure text endpoint for iOS - no JSON, just text"""
     query = request.args.get('q', '')
     user = request.args.get('user', '')
-    
     if not query:
         return 'Please provide a search query'
-    
-    # Support both authenticated and user parameter
-    if current_user.is_authenticated:
-        user = current_user.username
-    elif not user:
-        return 'User parameter required for API access'
     
     answer = search_all_sources(query, user)
     return answer, 200, {'Content-Type': 'text/plain; charset=utf-8'}
@@ -770,15 +522,14 @@ def api_status():
     return jsonify({
         'google_drive': drive_status,
         'ai_enabled': bool(openai_client),
-        'ai_model': 'gpt-4o-mini' if openai_client else None,
-        'authenticated': current_user.is_authenticated,
-        'user': current_user.username if current_user.is_authenticated else None
+        'ai_model': 'gpt-4o-mini' if openai_client else None
     })
 
 @app.route('/api/users')
 def api_users():
     """Get list of available users for search filtering"""
     users = list(SEARCH_CONFIG.get('user_folders', {}).keys())
+    # Remove 'WMA Team' from the list as it's not a user
     users = [u for u in users if u != 'WMA Team']
     users.sort()
     return jsonify({
@@ -791,25 +542,22 @@ def health():
     """Health check endpoint for Railway"""
     return 'OK', 200
 
+@app.route('/debug/env')
+def debug_env():
+    """Debug endpoint to check environment variables"""
+    env_vars = {
+        'OPENAI_API_KEY_exists': bool(os.environ.get('OPENAI_API_KEY')),
+        'OPENAI_API_KEY_length': len(os.environ.get('OPENAI_API_KEY', '')) if os.environ.get('OPENAI_API_KEY') else 0,
+        'GOOGLE_CLIENT_ID_exists': bool(os.environ.get('GOOGLE_CLIENT_ID')),
+        'openai_client_initialized': bool(openai_client),
+        'openai_version': openai.__version__ if hasattr(openai, '__version__') else 'unknown',
+        'All_env_vars': sorted([k for k in os.environ.keys() if not k.startswith('_')])
+    }
+    return jsonify(env_vars)
+
 if __name__ == '__main__':
-    # Initialize default admin user if no users exist
-    if not SEARCH_CONFIG.get('users'):
-        print("No users found. Creating default admin user...")
-        SEARCH_CONFIG['users'] = {
-            'Jeff': {
-                'password': generate_password_hash('changeme')  # Default password
-            }
-        }
-        try:
-            with open('search_config.json', 'w') as f:
-                json.dump(SEARCH_CONFIG, f, indent=2)
-            print("Default admin user created: Jeff (password: changeme)")
-            print("IMPORTANT: Change the password after first login!")
-        except Exception as e:
-            print(f"Could not save default user: {e}")
-    
     port = int(os.environ.get('PORT', 5000))
-    print(f"Starting Flask with Authentication on port {port}")
+    print(f"Starting Flask with Google Drive and AI integration on port {port}")
     print(f"AI enabled: {bool(openai_client)}")
-    print(f"VERSION: 4.0.0-Authentication")
+    print(f"VERSION: 3.4.0-User-Folders")
     app.run(host='0.0.0.0', port=port)

@@ -19,5 +19,6 @@
   "search_weights": {
     "user_folder": 2.0,
     "team_folder": 1.0
-  }
+  },
+  "users": {}
 }
