@@ -1,1 +1,1 @@
-web: python3 app_flask.py
+web: python3 app_flask_ai.py
