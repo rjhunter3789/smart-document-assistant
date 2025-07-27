@@ -15,6 +15,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 import fitz  # PyMuPDF
 from docx import Document as DocxDoc
+import openai
 from openai import OpenAI
 
 app = Flask(__name__)
@@ -23,12 +24,26 @@ app = Flask(__name__)
 openai_client = None
 api_key = os.environ.get('OPENAI_API_KEY')
 if api_key:
-    print(f"OpenAI API key found: {api_key[:10]}...")
+    print(f"OpenAI API key found: {api_key[:10]}... (length: {len(api_key)})")
     try:
-        openai_client = OpenAI(api_key=api_key)
-        print("OpenAI client initialized successfully")
+        # Force no proxy usage
+        openai_client = OpenAI(
+            api_key=api_key,
+            http_client=None  # This prevents proxy issues
+        )
+        # Test the client
+        test_response = openai_client.models.list()
+        print(f"OpenAI client initialized successfully - found {len(list(test_response))} models")
     except Exception as e:
-        print(f"Failed to initialize OpenAI client: {e}")
+        print(f"Failed to initialize OpenAI client: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
+        # Try without http_client parameter for older version
+        try:
+            openai_client = OpenAI(api_key=api_key)
+            print("OpenAI client initialized with fallback method")
+        except Exception as e2:
+            print(f"Fallback also failed: {e2}")
 else:
     print("No OPENAI_API_KEY found in environment")
 
@@ -440,6 +455,8 @@ def debug_env():
         'OPENAI_API_KEY_exists': bool(os.environ.get('OPENAI_API_KEY')),
         'OPENAI_API_KEY_length': len(os.environ.get('OPENAI_API_KEY', '')) if os.environ.get('OPENAI_API_KEY') else 0,
         'GOOGLE_CLIENT_ID_exists': bool(os.environ.get('GOOGLE_CLIENT_ID')),
+        'openai_client_initialized': bool(openai_client),
+        'openai_version': openai.__version__ if hasattr(openai, '__version__') else 'unknown',
         'All_env_vars': sorted([k for k in os.environ.keys() if not k.startswith('_')])
     }
     return jsonify(env_vars)
