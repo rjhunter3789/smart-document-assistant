@@ -26,24 +26,29 @@ api_key = os.environ.get('OPENAI_API_KEY')
 if api_key:
     print(f"OpenAI API key found: {api_key[:10]}... (length: {len(api_key)})")
     try:
-        # Force no proxy usage
-        openai_client = OpenAI(
-            api_key=api_key,
-            http_client=None  # This prevents proxy issues
-        )
+        # Clear any proxy environment variables that might interfere
+        import os as os_module
+        for proxy_var in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']:
+            if proxy_var in os_module.environ:
+                del os_module.environ[proxy_var]
+                print(f"Removed {proxy_var} from environment")
+        
+        # Initialize with just the API key
+        openai_client = OpenAI(api_key=api_key)
+        print("OpenAI client initialized successfully")
+        
         # Test the client
-        test_response = openai_client.models.list()
-        print(f"OpenAI client initialized successfully - found {len(list(test_response))} models")
+        try:
+            test_response = openai_client.models.list()
+            print(f"OpenAI client tested successfully - API is working")
+        except Exception as test_error:
+            print(f"Warning: Could not test OpenAI client: {test_error}")
+            
     except Exception as e:
         print(f"Failed to initialize OpenAI client: {type(e).__name__}: {e}")
         import traceback
         traceback.print_exc()
-        # Try without http_client parameter for older version
-        try:
-            openai_client = OpenAI(api_key=api_key)
-            print("OpenAI client initialized with fallback method")
-        except Exception as e2:
-            print(f"Fallback also failed: {e2}")
+        openai_client = None
 else:
     print("No OPENAI_API_KEY found in environment")
 
