@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Flask app with Google Drive integration for iOS Shortcuts
-Searches both local files and Google Drive documents
+Flask app with Google Drive integration and Claude AI summarization
+Searches documents and provides intelligent summaries
 """
 from flask import Flask, request, jsonify
 import os
@@ -14,16 +14,21 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 import fitz  # PyMuPDF
 from docx import Document as DocxDoc
+from anthropic import Anthropic
 
 app = Flask(__name__)
 
+# Initialize Claude (API key from environment)
+anthropic_client = None
+if os.environ.get('ANTHROPIC_API_KEY'):
+    anthropic_client = Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
+
 # Google Drive configuration
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
-PARENT_FOLDER_ID = "1galnuNa9g7xoULx3Ka8vs79-NuJUA4n6"  # From existing code
+PARENT_FOLDER_ID = "1galnuNa9g7xoULx3Ka8vs79-NuJUA4n6"  # WMA RAG folder
 
 def get_google_credentials():
     """Get Google credentials from environment variables or file"""
-    # First try environment variables (for Railway)
     if os.environ.get('GOOGLE_CLIENT_ID'):
         creds_dict = {
             "client_id": os.environ.get('GOOGLE_CLIENT_ID'),
@@ -35,7 +40,6 @@ def get_google_credentials():
         }
         return Credentials.from_authorized_user_info(creds_dict, SCOPES)
     
-    # Try loading from credentials.json file
     creds_file = 'credentials.json'
     if os.path.exists(creds_file):
         with open(creds_file, 'r') as f:
@@ -51,7 +55,6 @@ def authenticate_gdrive():
         if not creds:
             return None
             
-        # Refresh token if expired
         if creds.expired and creds.refresh_token:
             creds.refresh(Request())
             
@@ -78,57 +81,6 @@ def get_subfolders(service, parent_folder_id):
         print(f"Error getting subfolders: {e}")
     
     return folders
-
-def search_google_drive(query, service):
-    """Search for files in Google Drive"""
-    if not service:
-        return []
-    
-    results = []
-    seen_snippets = set()  # Track unique content
-    
-    try:
-        # Search for files containing the query in name or content WITHIN the WMA RAG folder
-        search_query = f"(name contains '{query}' or fullText contains '{query}') and trashed = false and '{PARENT_FOLDER_ID}' in parents"
-        
-        # Also search in subfolders
-        all_folders = get_subfolders(service, PARENT_FOLDER_ID)
-        folder_ids = [PARENT_FOLDER_ID] + all_folders
-        
-        # Build query to search in main folder and all subfolders
-        folder_query = " or ".join([f"'{fid}' in parents" for fid in folder_ids[:10]])  # Limit to 10 folders
-        search_query = f"(name contains '{query}' or fullText contains '{query}') and trashed = false and ({folder_query})"
-        
-        response = service.files().list(
-            q=search_query,
-            fields="files(id, name, mimeType, modifiedTime, parents)",
-            pageSize=5  # Reduced from 10 to limit results
-        ).execute()
-        
-        files = response.get('files', [])
-        
-        for file in files[:3]:  # Only process first 3 files
-            # Get file content based on type
-            content = extract_text_from_drive_file(file['id'], file['mimeType'], service)
-            if content and query.lower() in content.lower():
-                # Extract relevant snippet
-                index = content.lower().find(query.lower())
-                start = max(0, index - 100)
-                end = min(len(content), index + 200)
-                snippet = content[start:end].strip()
-                
-                # Only add if we haven't seen this exact snippet
-                snippet_key = snippet[:100]  # Use first 100 chars as key
-                if snippet_key not in seen_snippets:
-                    seen_snippets.add(snippet_key)
-                    # Clean snippet - remove ellipsis for cleaner speech
-                    clean_snippet = snippet.replace('...', ' ')
-                    results.append(clean_snippet)
-                
-    except Exception as e:
-        print(f"Drive search error: {e}")
-    
-    return results
 
 def extract_text_from_drive_file(file_id, mime_type, service):
     """Extract text content from a Google Drive file"""
@@ -173,6 +125,44 @@ def extract_text_from_drive_file(file_id, mime_type, service):
     
     return ""
 
+def search_google_drive(query, service):
+    """Search for files in Google Drive within WMA RAG folder"""
+    if not service:
+        return []
+    
+    results = []
+    
+    try:
+        # Get all subfolders
+        all_folders = get_subfolders(service, PARENT_FOLDER_ID)
+        folder_ids = [PARENT_FOLDER_ID] + all_folders
+        
+        # Build query to search in main folder and all subfolders
+        folder_query = " or ".join([f"'{fid}' in parents" for fid in folder_ids[:10]])
+        search_query = f"(name contains '{query}' or fullText contains '{query}') and trashed = false and ({folder_query})"
+        
+        response = service.files().list(
+            q=search_query,
+            fields="files(id, name, mimeType, modifiedTime)",
+            pageSize=5
+        ).execute()
+        
+        files = response.get('files', [])
+        
+        for file in files[:3]:  # Process first 3 files
+            content = extract_text_from_drive_file(file['id'], file['mimeType'], service)
+            if content and query.lower() in content.lower():
+                results.append({
+                    'filename': file['name'],
+                    'content': content[:2000],  # First 2000 chars for AI context
+                    'full_content': content  # Keep full content for detailed analysis
+                })
+                
+    except Exception as e:
+        print(f"Drive search error: {e}")
+    
+    return results
+
 def search_local_docs(query):
     """Search through local documents in app/docs folder"""
     docs_path = "app/docs"
@@ -186,59 +176,120 @@ def search_local_docs(query):
                     with open(filepath, 'r', encoding='utf-8') as f:
                         content = f.read()
                         if query.lower() in content.lower():
-                            # Extract relevant snippet
-                            index = content.lower().find(query.lower())
-                            start = max(0, index - 100)
-                            end = min(len(content), index + 200)
-                            snippet = content[start:end].strip()
-                            # Clean snippet for speech
-                            clean_snippet = snippet.replace('...', ' ')
-                            results.append(clean_snippet)
+                            results.append({
+                                'filename': filename,
+                                'content': content[:2000],
+                                'full_content': content
+                            })
                 except:
                     pass
     
     return results
 
+def ai_summarize(query, documents):
+    """Use Claude to intelligently summarize search results"""
+    if not anthropic_client or not documents:
+        # Fallback to simple extraction if no AI available
+        simple_results = []
+        for doc in documents:
+            content = doc['content']
+            index = content.lower().find(query.lower())
+            if index != -1:
+                start = max(0, index - 150)
+                end = min(len(content), index + 150)
+                snippet = content[start:end].strip()
+                simple_results.append(f"From {doc['filename']}: {snippet}")
+        return "\n\n---\n\n".join(simple_results) if simple_results else f"No information found about '{query}'."
+    
+    # Prepare context for Claude
+    context = f"You are a helpful assistant searching documents for information about: {query}\n\n"
+    context += "Here are the relevant documents:\n\n"
+    
+    for i, doc in enumerate(documents[:3], 1):
+        context += f"Document {i} - {doc['filename']}:\n{doc['content']}\n\n"
+    
+    # Create prompt for Claude
+    prompt = f"""Based on the documents provided, please give a clear, concise answer to this query: "{query}"
+
+Instructions:
+- Synthesize information from all relevant documents
+- Be specific and include key facts
+- If quoting directly, mention which document it's from
+- Keep the response under 300 words
+- Focus on answering the user's specific question
+- Use natural language suitable for text-to-speech"""
+
+    try:
+        response = anthropic_client.messages.create(
+            model="claude-3-5-sonnet-20241022",
+            max_tokens=500,
+            temperature=0.3,
+            system=context,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        
+        return response.content[0].text
+        
+    except Exception as e:
+        print(f"AI summarization error: {e}")
+        # Fallback to simple extraction
+        return "\n\n---\n\n".join([f"From {doc['filename']}: {doc['content'][:300]}..." for doc in documents])
+
 def search_all_sources(query):
-    """Search both local files and Google Drive"""
-    results = []
+    """Search both local files and Google Drive, then AI summarize"""
+    all_documents = []
     
     # Search local files
     local_results = search_local_docs(query)
-    results.extend(local_results)
+    all_documents.extend(local_results)
     
     # Search Google Drive if authenticated
     service = authenticate_gdrive()
     if service:
         drive_results = search_google_drive(query, service)
-        results.extend(drive_results)
-    else:
-        results.append("Note: Google Drive not connected. Searching local files only.")
+        all_documents.extend(drive_results)
     
-    if not results:
+    if not all_documents:
         return f"No information found about '{query}' in documents."
     
-    # Add separator for clearer speech
-    return "\n\n---\n\n".join(results)
+    # Use AI to summarize findings
+    return ai_summarize(query, all_documents)
 
 @app.route('/')
 def home():
     """Simple HTML interface for browser testing"""
     return '''
     <html>
-        <head><title>Smart Document Assistant</title></head>
+        <head>
+            <title>Smart Document Assistant</title>
+            <style>
+                body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+                h1 { color: #333; }
+                input { width: 400px; padding: 10px; font-size: 16px; }
+                button { padding: 10px 20px; font-size: 16px; background: #007bff; color: white; border: none; cursor: pointer; }
+                button:hover { background: #0056b3; }
+                .status { margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 5px; }
+            </style>
+        </head>
         <body>
-            <h1>Smart Document Assistant with Google Drive</h1>
+            <h1>Smart Document Assistant with AI</h1>
             <form action="/search" method="get">
-                <input type="text" name="q" placeholder="Ask a question..." size="50">
+                <input type="text" name="q" placeholder="Ask a question..." required>
                 <button type="submit">Search</button>
             </form>
-            <p>API Endpoints:</p>
-            <ul>
-                <li>/api/search?q=your+question - JSON response</li>
-                <li>/api/search/text?q=your+question - Plain text for iOS</li>
-                <li>/api/status - Check Google Drive connection</li>
-            </ul>
+            <div class="status">
+                <p><strong>Status:</strong></p>
+                <ul>
+                    <li>Google Drive: <span id="drive-status">Checking...</span></li>
+                    <li>AI (Claude): <span id="ai-status">Checking...</span></li>
+                </ul>
+            </div>
+            <script>
+                fetch('/api/status').then(r => r.json()).then(data => {
+                    document.getElementById('drive-status').textContent = data.google_drive || 'Not configured';
+                    document.getElementById('ai-status').textContent = data.ai_enabled ? 'Connected' : 'Not configured';
+                });
+            </script>
         </body>
     </html>
     '''
@@ -253,17 +304,27 @@ def search():
     answer = search_all_sources(query)
     return f'''
     <html>
+        <head>
+            <title>Search Results</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }}
+                .answer {{ background: #f0f0f0; padding: 20px; border-radius: 5px; line-height: 1.6; }}
+                a {{ color: #007bff; text-decoration: none; }}
+            </style>
+        </head>
         <body>
             <h2>Question: {query}</h2>
-            <pre>{answer}</pre>
-            <a href="/">Ask another question</a>
+            <div class="answer">
+                {answer.replace(chr(10), '<br>')}
+            </div>
+            <p><a href="/">Ask another question</a></p>
         </body>
     </html>
     '''
 
 @app.route('/api/search')
 def api_search():
-    """iOS-friendly API endpoint - returns plain text"""
+    """API endpoint - returns JSON or plain text"""
     query = request.args.get('q', '')
     if not query:
         return 'Please provide a search query', 400
@@ -277,7 +338,8 @@ def api_search():
     # For other API clients - return JSON
     return jsonify({
         'query': query,
-        'answer': answer
+        'answer': answer,
+        'ai_enabled': bool(anthropic_client)
     })
 
 @app.route('/api/search/text')
@@ -292,26 +354,22 @@ def api_search_text():
 
 @app.route('/api/status')
 def api_status():
-    """Check Google Drive connection status"""
+    """Check Google Drive and AI connection status"""
     service = authenticate_gdrive()
+    drive_status = 'not configured'
+    
     if service:
         try:
-            # Try to list one file to verify connection
             service.files().list(pageSize=1).execute()
-            return jsonify({
-                'google_drive': 'connected',
-                'status': 'ok'
-            })
+            drive_status = 'connected'
         except:
-            return jsonify({
-                'google_drive': 'error',
-                'status': 'authentication failed'
-            })
-    else:
-        return jsonify({
-            'google_drive': 'not configured',
-            'status': 'credentials missing'
-        })
+            drive_status = 'authentication failed'
+    
+    return jsonify({
+        'google_drive': drive_status,
+        'ai_enabled': bool(anthropic_client),
+        'ai_model': 'claude-3-5-sonnet' if anthropic_client else None
+    })
 
 @app.route('/health')
 def health():
@@ -320,5 +378,6 @@ def health():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print(f"Starting Flask with Google Drive integration on port {port}")
+    print(f"Starting Flask with Google Drive and AI integration on port {port}")
+    print(f"AI enabled: {bool(anthropic_client)}")
     app.run(host='0.0.0.0', port=port)
