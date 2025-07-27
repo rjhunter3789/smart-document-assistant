@@ -176,23 +176,55 @@ def search_local_docs(query):
     docs_path = "app/docs"
     results = []
     
+    # List of system files to exclude from search results
+    system_files = ['WMA_AI_Agent_System_Prompt.txt', 'WMA_AI_Agent_System_Prompt.docx']
+    
     if os.path.exists(docs_path):
         for filename in os.listdir(docs_path):
-            if filename.endswith('.txt'):
-                filepath = os.path.join(docs_path, filename)
-                try:
+            # Skip system prompt files
+            if filename in system_files:
+                continue
+            
+            filepath = os.path.join(docs_path, filename)
+            content = ""
+            
+            try:
+                if filename.endswith('.txt'):
                     with open(filepath, 'r', encoding='utf-8') as f:
                         content = f.read()
-                        if query.lower() in content.lower():
-                            results.append({
-                                'filename': filename,
-                                'content': content[:2000],
-                                'full_content': content
-                            })
-                except:
-                    pass
+                        
+                elif filename.endswith('.pdf'):
+                    pdf_document = fitz.open(filepath)
+                    for page in pdf_document:
+                        content += page.get_text()
+                    pdf_document.close()
+                    
+                elif filename.endswith('.docx'):
+                    doc = DocxDoc(filepath)
+                    content = '\n'.join([paragraph.text for paragraph in doc.paragraphs])
+                
+                # Search for query in content
+                if content and query.lower() in content.lower():
+                    results.append({
+                        'filename': filename,
+                        'content': content[:2000],
+                        'full_content': content
+                    })
+            except Exception as e:
+                print(f"Error reading {filename}: {e}")
     
     return results
+
+def get_system_prompt():
+    """Load the WMA AI Agent system prompt for context"""
+    system_prompt_path = "app/docs/WMA_AI_Agent_System_Prompt.txt"
+    try:
+        if os.path.exists(system_prompt_path):
+            with open(system_prompt_path, 'r', encoding='utf-8') as f:
+                return f.read()
+    except:
+        pass
+    return ""
 
 def ai_summarize(query, documents):
     """Use OpenAI GPT to intelligently summarize search results"""
@@ -228,13 +260,24 @@ Instructions:
 - Use natural language suitable for text-to-speech"""
 
     try:
+        # Get system prompt for additional context
+        system_prompt = get_system_prompt()
+        
+        # Enhance system message with WMA context if available
+        system_message = "You are a helpful document analysis assistant."
+        if system_prompt:
+            system_message = f"""You are the WMA AI Agent helping Jeff and his team analyze dealership documents. 
+{system_prompt[:500]}...
+
+Focus on providing clear, actionable insights from the documents provided."""
+        
         # Combine context and prompt for OpenAI
         full_prompt = context + "\n" + prompt
         
         response = openai_client.chat.completions.create(
             model="gpt-4o-mini",  # Fast and affordable
             messages=[
-                {"role": "system", "content": "You are a helpful document analysis assistant."},
+                {"role": "system", "content": system_message},
                 {"role": "user", "content": full_prompt}
             ],
             max_tokens=500,
@@ -393,5 +436,5 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"Starting Flask with Google Drive and AI integration on port {port}")
     print(f"AI enabled: {bool(openai_client)}")
-    print(f"VERSION: 3.3.0-AI")
+    print(f"VERSION: 3.3.1-AI-FIXED")
     app.run(host='0.0.0.0', port=port)
