@@ -433,6 +433,17 @@ def health():
     """Health check endpoint for Railway"""
     return 'OK', 200
 
+@app.route('/debug/env')
+def debug_env():
+    """Debug endpoint to check environment variables"""
+    env_vars = {
+        'OPENAI_API_KEY_exists': bool(os.environ.get('OPENAI_API_KEY')),
+        'OPENAI_API_KEY_length': len(os.environ.get('OPENAI_API_KEY', '')) if os.environ.get('OPENAI_API_KEY') else 0,
+        'GOOGLE_CLIENT_ID_exists': bool(os.environ.get('GOOGLE_CLIENT_ID')),
+        'All_env_vars': sorted([k for k in os.environ.keys() if not k.startswith('_')])
+    }
+    return jsonify(env_vars)
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"Starting Flask with Google Drive and AI integration on port {port}")
