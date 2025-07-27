@@ -23,29 +23,47 @@ app = Flask(__name__)
 # Initialize OpenAI (API key from environment)
 openai_client = None
 api_key = os.environ.get('OPENAI_API_KEY')
+
+# Workaround for Railway's proxy injection issue
+# Remove all proxy-related environment variables before importing httpx
+proxy_vars = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 
+              'NO_PROXY', 'no_proxy', 'ALL_PROXY', 'all_proxy']
+saved_proxies = {}
+for var in proxy_vars:
+    if var in os.environ:
+        saved_proxies[var] = os.environ.pop(var)
+        print(f"Temporarily removed {var} from environment")
+
 if api_key:
     print(f"OpenAI API key found: {api_key[:10]}... (length: {len(api_key)})")
     try:
-        # For newer openai versions, we can specify default_headers to avoid proxy issues
+        # Import httpx and create client without proxies
+        import httpx
+        
+        # Create a custom httpx client without proxy support
+        custom_http_client = httpx.Client(
+            trust_env=False,  # This disables reading proxy from environment
+            timeout=httpx.Timeout(60.0)
+        )
+        
+        # Initialize OpenAI with custom http client
         openai_client = OpenAI(
             api_key=api_key,
-            default_headers={"User-Agent": "SmartDocumentAssistant/1.0"}
+            http_client=custom_http_client
         )
-        print("OpenAI client initialized successfully")
+        print("OpenAI client initialized successfully with custom http client")
         
-        # Test the client
-        try:
-            test_response = openai_client.models.list()
-            print(f"OpenAI client tested successfully - API is working")
-        except Exception as test_error:
-            print(f"Warning: Could not test OpenAI client: {test_error}")
-            
     except Exception as e:
         print(f"Failed to initialize OpenAI client: {type(e).__name__}: {e}")
         import traceback
         traceback.print_exc()
         openai_client = None
-else:
+
+# Restore proxy variables for other parts of the app
+for var, value in saved_proxies.items():
+    os.environ[var] = value
+    
+if not api_key:
     print("No OPENAI_API_KEY found in environment")
 
 # Google Drive configuration
