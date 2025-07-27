@@ -337,7 +337,7 @@ def home():
                 <p><strong>Status:</strong></p>
                 <ul>
                     <li>Google Drive: <span id="drive-status">Checking...</span></li>
-                    <li>AI (Claude): <span id="ai-status">Checking...</span></li>
+                    <li>AI (OpenAI GPT-4o-mini): <span id="ai-status">Checking...</span></li>
                 </ul>
             </div>
             <script>
@@ -436,5 +436,5 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"Starting Flask with Google Drive and AI integration on port {port}")
     print(f"AI enabled: {bool(openai_client)}")
-    print(f"VERSION: 3.3.1-AI-FIXED")
+    print(f"VERSION: 3.3.2-OpenAI")
     app.run(host='0.0.0.0', port=port)
