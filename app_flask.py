@@ -26,15 +26,11 @@ api_key = os.environ.get('OPENAI_API_KEY')
 if api_key:
     print(f"OpenAI API key found: {api_key[:10]}... (length: {len(api_key)})")
     try:
-        # Clear any proxy environment variables that might interfere
-        import os as os_module
-        for proxy_var in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']:
-            if proxy_var in os_module.environ:
-                del os_module.environ[proxy_var]
-                print(f"Removed {proxy_var} from environment")
-        
-        # Initialize with just the API key
-        openai_client = OpenAI(api_key=api_key)
+        # For newer openai versions, we can specify default_headers to avoid proxy issues
+        openai_client = OpenAI(
+            api_key=api_key,
+            default_headers={"User-Agent": "SmartDocumentAssistant/1.0"}
+        )
         print("OpenAI client initialized successfully")
         
         # Test the client
