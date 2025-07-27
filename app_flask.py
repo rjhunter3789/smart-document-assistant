@@ -60,6 +60,25 @@ def authenticate_gdrive():
         print(f"Authentication error: {e}")
         return None
 
+def get_subfolders(service, parent_folder_id):
+    """Get all subfolders within a parent folder"""
+    folders = []
+    try:
+        query = f"'{parent_folder_id}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+        response = service.files().list(
+            q=query,
+            fields="files(id, name)",
+            pageSize=100
+        ).execute()
+        
+        for folder in response.get('files', []):
+            folders.append(folder['id'])
+            
+    except Exception as e:
+        print(f"Error getting subfolders: {e}")
+    
+    return folders
+
 def search_google_drive(query, service):
     """Search for files in Google Drive"""
     if not service:
@@ -69,12 +88,20 @@ def search_google_drive(query, service):
     seen_snippets = set()  # Track unique content
     
     try:
-        # Search for files containing the query in name or content
-        search_query = f"(name contains '{query}' or fullText contains '{query}') and trashed = false"
+        # Search for files containing the query in name or content WITHIN the WMA RAG folder
+        search_query = f"(name contains '{query}' or fullText contains '{query}') and trashed = false and '{PARENT_FOLDER_ID}' in parents"
+        
+        # Also search in subfolders
+        all_folders = get_subfolders(service, PARENT_FOLDER_ID)
+        folder_ids = [PARENT_FOLDER_ID] + all_folders
+        
+        # Build query to search in main folder and all subfolders
+        folder_query = " or ".join([f"'{fid}' in parents" for fid in folder_ids[:10]])  # Limit to 10 folders
+        search_query = f"(name contains '{query}' or fullText contains '{query}') and trashed = false and ({folder_query})"
         
         response = service.files().list(
             q=search_query,
-            fields="files(id, name, mimeType, modifiedTime)",
+            fields="files(id, name, mimeType, modifiedTime, parents)",
             pageSize=5  # Reduced from 10 to limit results
         ).execute()
         
