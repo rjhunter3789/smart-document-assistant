@@ -495,8 +495,8 @@ ADMIN_TEMPLATE = '''
             table { width: 100%; border-collapse: collapse; margin: 20px 0; }
             th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
             th { background: #f0f0f0; }
-            .add-user { background: #f9f9f9; padding: 20px; border-radius: 5px; margin: 20px 0; }
-            input { padding: 8px; margin: 5px; }
+            .add-user, .change-password { background: #f9f9f9; padding: 20px; border-radius: 5px; margin: 20px 0; }
+            input, select { padding: 8px; margin: 5px; }
             button { padding: 8px 16px; background: #007bff; color: white; border: none; cursor: pointer; }
             button:hover { background: #0056b3; }
             .delete { background: #dc3545; }
@@ -504,6 +504,8 @@ ADMIN_TEMPLATE = '''
             .message { padding: 10px; margin: 10px 0; border-radius: 5px; }
             .success { background: #d4edda; color: #155724; }
             .error { background: #f8d7da; color: #721c24; }
+            .info { background: #d1ecf1; color: #0c5460; }
+            .password-display { background: #fff3cd; color: #856404; padding: 10px; margin: 10px 0; border-radius: 5px; font-family: monospace; font-size: 16px; }
         </style>
     </head>
     <body>
@@ -514,6 +516,17 @@ ADMIN_TEMPLATE = '''
         <div class="message {{ message_type }}">{{ message }}</div>
         {% endif %}
         
+        {% if new_password %}
+        <div class="message info">
+            <strong>Password changed successfully!</strong><br>
+            User: {{ password_username }}<br>
+            <div class="password-display">
+                New Password: {{ new_password }}
+            </div>
+            <em>Please save this password. It will not be shown again.</em>
+        </div>
+        {% endif %}
+        
         <div class="add-user">
             <h2>Add New User</h2>
             <form method="post" action="/admin/add-user">
@@ -521,6 +534,20 @@ ADMIN_TEMPLATE = '''
                 <input type="password" name="password" placeholder="Password" required>
                 <input type="text" name="folder_id" placeholder="Google Drive Folder ID (optional)">
                 <button type="submit">Add User</button>
+            </form>
+        </div>
+        
+        <div class="change-password">
+            <h2>Change Password</h2>
+            <form method="post" action="/admin/change-password">
+                <select name="username" required>
+                    <option value="">Select user...</option>
+                    {% for username in users %}
+                    <option value="{{ username }}">{{ username }}{% if username == 'Jeff' %} (Admin){% endif %}</option>
+                    {% endfor %}
+                </select>
+                <input type="password" name="new_password" placeholder="New Password" required>
+                <button type="submit">Change Password</button>
             </form>
         </div>
         
@@ -624,12 +651,16 @@ def admin():
     
     message = request.args.get('message')
     message_type = request.args.get('message_type', 'success')
+    new_password = request.args.get('new_password')
+    password_username = request.args.get('password_username')
     
     return render_template_string(ADMIN_TEMPLATE, 
                                 users=users, 
                                 user_folders=user_folders,
                                 message=message,
-                                message_type=message_type)
+                                message_type=message_type,
+                                new_password=new_password,
+                                password_username=password_username)
 
 @app.route('/admin/add-user', methods=['POST'])
 @admin_required
@@ -669,7 +700,14 @@ def add_user():
         # Update global config
         SEARCH_CONFIG = config
         
-        return redirect(url_for('admin', message=f'User {username} added successfully'))
+        # Redirect with the plain password to display it once
+        from urllib.parse import urlencode
+        params = {
+            'message': f'User {username} added successfully',
+            'new_password': password,
+            'password_username': username
+        }
+        return redirect(url_for('admin') + '?' + urlencode(params))
     except Exception as e:
         return redirect(url_for('admin', message=f'Error saving config: {e}', message_type='error'))
 
@@ -704,6 +742,47 @@ def delete_user():
         SEARCH_CONFIG = config
         
         return redirect(url_for('admin', message=f'User {username} deleted'))
+    except Exception as e:
+        return redirect(url_for('admin', message=f'Error saving config: {e}', message_type='error'))
+
+@app.route('/admin/change-password', methods=['POST'])
+@admin_required
+def change_password():
+    """Change a user's password"""
+    global SEARCH_CONFIG
+    
+    username = request.form.get('username')
+    new_password = request.form.get('new_password')
+    
+    if not username or not new_password:
+        return redirect(url_for('admin', message='Username and new password required', message_type='error'))
+    
+    # Load current config
+    config = SEARCH_CONFIG.copy()
+    
+    # Check if user exists
+    if username not in config.get('users', {}):
+        return redirect(url_for('admin', message=f'User {username} not found', message_type='error'))
+    
+    # Update password with hash
+    config['users'][username]['password'] = generate_password_hash(new_password)
+    
+    # Save config
+    try:
+        with open('search_config.json', 'w') as f:
+            json.dump(config, f, indent=2)
+        
+        # Update global config
+        SEARCH_CONFIG = config
+        
+        # Redirect with the plain password to display it once
+        from urllib.parse import urlencode
+        params = {
+            'message': f'Password changed for {username}',
+            'new_password': new_password,
+            'password_username': username
+        }
+        return redirect(url_for('admin') + '?' + urlencode(params))
     except Exception as e:
         return redirect(url_for('admin', message=f'Error saving config: {e}', message_type='error'))
 
