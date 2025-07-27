@@ -826,11 +826,22 @@ def api_search_text():
     if not query:
         return 'Please provide a search query'
     
-    # Support both authenticated and user parameter
+    # For API access, user parameter is sufficient (iOS Shortcuts compatibility)
+    if not user and not current_user.is_authenticated:
+        return 'User parameter required for API access'
+    
+    # Use authenticated user if logged in, otherwise use parameter
     if current_user.is_authenticated:
         user = current_user.username
-    elif not user:
-        return 'User parameter required for API access'
+    
+    # Validate the user exists (check both user_folders and users)
+    valid_users = list(SEARCH_CONFIG.get('user_folders', {}).keys())
+    valid_users.extend(list(SEARCH_CONFIG.get('users', {}).keys()))
+    
+    # Make comparison case-insensitive
+    valid_users_lower = [u.lower() for u in valid_users]
+    if user.lower() not in valid_users_lower:
+        return f'Unknown user: {user}. Valid users: {", ".join(sorted(set(valid_users)))}'
     
     answer = search_all_sources(query, user)
     return answer, 200, {'Content-Type': 'text/plain; charset=utf-8'}
