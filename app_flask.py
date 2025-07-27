@@ -635,6 +635,8 @@ def admin():
 @admin_required
 def add_user():
     """Add a new user"""
+    global SEARCH_CONFIG
+    
     username = request.form.get('username')
     password = request.form.get('password')
     folder_id = request.form.get('folder_id')
@@ -665,7 +667,6 @@ def add_user():
             json.dump(config, f, indent=2)
         
         # Update global config
-        global SEARCH_CONFIG
         SEARCH_CONFIG = config
         
         return redirect(url_for('admin', message=f'User {username} added successfully'))
@@ -676,6 +677,8 @@ def add_user():
 @admin_required
 def delete_user():
     """Delete a user"""
+    global SEARCH_CONFIG
+    
     username = request.form.get('username')
     
     if username == 'Jeff':
@@ -698,7 +701,6 @@ def delete_user():
             json.dump(config, f, indent=2)
         
         # Update global config
-        global SEARCH_CONFIG
         SEARCH_CONFIG = config
         
         return redirect(url_for('admin', message=f'User {username} deleted'))
