@@ -20,8 +20,16 @@ app = Flask(__name__)
 
 # Initialize Claude (API key from environment)
 anthropic_client = None
-if os.environ.get('ANTHROPIC_API_KEY'):
-    anthropic_client = Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
+api_key = os.environ.get('ANTHROPIC_API_KEY')
+if api_key:
+    print(f"Anthropic API key found: {api_key[:10]}...")
+    try:
+        anthropic_client = Anthropic(api_key=api_key)
+        print("Anthropic client initialized successfully")
+    except Exception as e:
+        print(f"Failed to initialize Anthropic client: {e}")
+else:
+    print("No ANTHROPIC_API_KEY found in environment")
 
 # Google Drive configuration
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
@@ -380,4 +388,5 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"Starting Flask with Google Drive and AI integration on port {port}")
     print(f"AI enabled: {bool(anthropic_client)}")
+    print(f"VERSION: 3.3.0-AI")
     app.run(host='0.0.0.0', port=port)
