@@ -14,22 +14,22 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 import fitz  # PyMuPDF
 from docx import Document as DocxDoc
-from anthropic import Anthropic
+from openai import OpenAI
 
 app = Flask(__name__)
 
-# Initialize Claude (API key from environment)
-anthropic_client = None
-api_key = os.environ.get('ANTHROPIC_API_KEY')
+# Initialize OpenAI (API key from environment)
+openai_client = None
+api_key = os.environ.get('OPENAI_API_KEY')
 if api_key:
-    print(f"Anthropic API key found: {api_key[:10]}...")
+    print(f"OpenAI API key found: {api_key[:10]}...")
     try:
-        anthropic_client = Anthropic(api_key=api_key)
-        print("Anthropic client initialized successfully")
+        openai_client = OpenAI(api_key=api_key)
+        print("OpenAI client initialized successfully")
     except Exception as e:
-        print(f"Failed to initialize Anthropic client: {e}")
+        print(f"Failed to initialize OpenAI client: {e}")
 else:
-    print("No ANTHROPIC_API_KEY found in environment")
+    print("No OPENAI_API_KEY found in environment")
 
 # Google Drive configuration
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
@@ -195,8 +195,8 @@ def search_local_docs(query):
     return results
 
 def ai_summarize(query, documents):
-    """Use Claude to intelligently summarize search results"""
-    if not anthropic_client or not documents:
+    """Use OpenAI GPT to intelligently summarize search results"""
+    if not openai_client or not documents:
         # Fallback to simple extraction if no AI available
         simple_results = []
         for doc in documents:
@@ -228,15 +228,20 @@ Instructions:
 - Use natural language suitable for text-to-speech"""
 
     try:
-        response = anthropic_client.messages.create(
-            model="claude-3-5-sonnet-20241022",
+        # Combine context and prompt for OpenAI
+        full_prompt = context + "\n" + prompt
+        
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",  # Fast and affordable
+            messages=[
+                {"role": "system", "content": "You are a helpful document analysis assistant."},
+                {"role": "user", "content": full_prompt}
+            ],
             max_tokens=500,
-            temperature=0.3,
-            system=context,
-            messages=[{"role": "user", "content": prompt}]
+            temperature=0.3
         )
         
-        return response.content[0].text
+        return response.choices[0].message.content
         
     except Exception as e:
         print(f"AI summarization error: {e}")
@@ -295,7 +300,7 @@ def home():
             <script>
                 fetch('/api/status').then(r => r.json()).then(data => {
                     document.getElementById('drive-status').textContent = data.google_drive || 'Not configured';
-                    document.getElementById('ai-status').textContent = data.ai_enabled ? 'Connected' : 'Not configured';
+                    document.getElementById('ai-status').textContent = data.ai_enabled ? 'GPT Connected' : 'Not configured';
                 });
             </script>
         </body>
@@ -347,7 +352,7 @@ def api_search():
     return jsonify({
         'query': query,
         'answer': answer,
-        'ai_enabled': bool(anthropic_client)
+        'ai_enabled': bool(openai_client)
     })
 
 @app.route('/api/search/text')
@@ -375,8 +380,8 @@ def api_status():
     
     return jsonify({
         'google_drive': drive_status,
-        'ai_enabled': bool(anthropic_client),
-        'ai_model': 'claude-3-5-sonnet' if anthropic_client else None
+        'ai_enabled': bool(openai_client),
+        'ai_model': 'gpt-4o-mini' if openai_client else None
     })
 
 @app.route('/health')
@@ -387,6 +392,6 @@ def health():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"Starting Flask with Google Drive and AI integration on port {port}")
-    print(f"AI enabled: {bool(anthropic_client)}")
+    print(f"AI enabled: {bool(openai_client)}")
     print(f"VERSION: 3.3.0-AI")
     app.run(host='0.0.0.0', port=port)
