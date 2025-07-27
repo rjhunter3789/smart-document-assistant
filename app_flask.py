@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 Flask app with Google Drive integration and OpenAI GPT-4o-mini
-Searches documents and provides intelligent AI summaries
-Version: 3.3.2-OpenAI-FIXED
+Searches documents and provides intelligent AI summaries with user-specific folder prioritization
+Version: 3.4.0-User-Folders
 """
 from flask import Flask, request, jsonify
 import os
@@ -69,6 +69,19 @@ if not api_key:
 # Google Drive configuration
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 PARENT_FOLDER_ID = "1galnuNa9g7xoULx3Ka8vs79-NuJUA4n6"  # WMA RAG folder
+
+# Load user folder configuration
+SEARCH_CONFIG = {}
+try:
+    with open('search_config.json', 'r') as f:
+        SEARCH_CONFIG = json.load(f)
+except Exception as e:
+    print(f"Could not load search_config.json: {e}")
+    SEARCH_CONFIG = {
+        'user_folders': {},
+        'default_team_folder': '1INF091UIAoK87SIVzN4MpeUERyAyO-w4',
+        'search_weights': {'user_folder': 2.0, 'team_folder': 1.0}
+    }
 
 def get_google_credentials():
     """Get Google credentials from environment variables or file"""
@@ -168,41 +181,68 @@ def extract_text_from_drive_file(file_id, mime_type, service):
     
     return ""
 
-def search_google_drive(query, service):
-    """Search for files in Google Drive within WMA RAG folder"""
+def search_google_drive(query, service, user=None):
+    """Search for files in Google Drive with user-specific prioritization"""
     if not service:
         return []
     
     results = []
     
     try:
-        # Get all subfolders
-        all_folders = get_subfolders(service, PARENT_FOLDER_ID)
-        folder_ids = [PARENT_FOLDER_ID] + all_folders
+        # Determine folders to search
+        folders_to_search = []
         
-        # Build query to search in main folder and all subfolders
-        folder_query = " or ".join([f"'{fid}' in parents" for fid in folder_ids[:10]])
-        search_query = f"(name contains '{query}' or fullText contains '{query}') and trashed = false and ({folder_query})"
+        # Add user-specific folder if user is provided
+        if user and user in SEARCH_CONFIG.get('user_folders', {}):
+            user_folder_id = SEARCH_CONFIG['user_folders'][user]
+            user_subfolders = get_subfolders(service, user_folder_id)
+            user_folder_ids = [user_folder_id] + user_subfolders
+            folders_to_search.append({
+                'folder_ids': user_folder_ids,
+                'weight': SEARCH_CONFIG['search_weights']['user_folder'],
+                'source': f"{user}'s folder"
+            })
         
-        response = service.files().list(
-            q=search_query,
-            fields="files(id, name, mimeType, modifiedTime)",
-            pageSize=5
-        ).execute()
+        # Add team folder
+        team_folder_id = SEARCH_CONFIG.get('default_team_folder', PARENT_FOLDER_ID)
+        team_subfolders = get_subfolders(service, team_folder_id)
+        team_folder_ids = [team_folder_id] + team_subfolders
+        folders_to_search.append({
+            'folder_ids': team_folder_ids,
+            'weight': SEARCH_CONFIG['search_weights']['team_folder'],
+            'source': "WMA Team folder"
+        })
         
-        files = response.get('files', [])
-        
-        for file in files[:3]:  # Process first 3 files
-            content = extract_text_from_drive_file(file['id'], file['mimeType'], service)
-            if content and query.lower() in content.lower():
-                results.append({
-                    'filename': file['name'],
-                    'content': content[:2000],  # First 2000 chars for AI context
-                    'full_content': content  # Keep full content for detailed analysis
-                })
+        # Search each folder group
+        for folder_group in folders_to_search:
+            folder_ids = folder_group['folder_ids'][:10]  # Limit to 10 folders per group
+            folder_query = " or ".join([f"'{fid}' in parents" for fid in folder_ids])
+            search_query = f"(name contains '{query}' or fullText contains '{query}') and trashed = false and ({folder_query})"
+            
+            response = service.files().list(
+                q=search_query,
+                fields="files(id, name, mimeType, modifiedTime)",
+                pageSize=5
+            ).execute()
+            
+            files = response.get('files', [])
+            
+            for file in files[:3]:  # Process first 3 files per folder group
+                content = extract_text_from_drive_file(file['id'], file['mimeType'], service)
+                if content and query.lower() in content.lower():
+                    results.append({
+                        'filename': file['name'],
+                        'content': content[:2000],  # First 2000 chars for AI context
+                        'full_content': content,  # Keep full content for detailed analysis
+                        'weight': folder_group['weight'],
+                        'source': folder_group['source']
+                    })
                 
     except Exception as e:
         print(f"Drive search error: {e}")
+    
+    # Sort results by weight (user folder results first)
+    results.sort(key=lambda x: x.get('weight', 1.0), reverse=True)
     
     return results
 
@@ -273,15 +313,17 @@ def ai_summarize(query, documents):
                 start = max(0, index - 150)
                 end = min(len(content), index + 150)
                 snippet = content[start:end].strip()
-                simple_results.append(f"From {doc['filename']}: {snippet}")
+                source_info = f" (from {doc.get('source', 'documents')})" if 'source' in doc else ""
+                simple_results.append(f"From {doc['filename']}{source_info}: {snippet}")
         return "\n\n---\n\n".join(simple_results) if simple_results else f"No information found about '{query}'."
     
-    # Prepare context for Claude
+    # Prepare context for AI
     context = f"You are a helpful assistant searching documents for information about: {query}\n\n"
     context += "Here are the relevant documents:\n\n"
     
-    for i, doc in enumerate(documents[:3], 1):
-        context += f"Document {i} - {doc['filename']}:\n{doc['content']}\n\n"
+    for i, doc in enumerate(documents[:5], 1):  # Process up to 5 documents
+        source_info = f" (from {doc.get('source', 'documents')})" if 'source' in doc else ""
+        context += f"Document {i} - {doc['filename']}{source_info}:\n{doc['content']}\n\n"
     
     # Create prompt for Claude
     prompt = f"""Based on the documents provided, please give a clear, concise answer to this query: "{query}"
@@ -326,8 +368,8 @@ Focus on providing clear, actionable insights from the documents provided."""
         # Fallback to simple extraction
         return "\n\n---\n\n".join([f"From {doc['filename']}: {doc['content'][:300]}..." for doc in documents])
 
-def search_all_sources(query):
-    """Search both local files and Google Drive, then AI summarize"""
+def search_all_sources(query, user=None):
+    """Search both local files and Google Drive with user prioritization, then AI summarize"""
     all_documents = []
     
     # Search local files
@@ -337,7 +379,7 @@ def search_all_sources(query):
     # Search Google Drive if authenticated
     service = authenticate_gdrive()
     if service:
-        drive_results = search_google_drive(query, service)
+        drive_results = search_google_drive(query, service, user)
         all_documents.extend(drive_results)
     
     if not all_documents:
@@ -366,6 +408,22 @@ def home():
             <h1>Smart Document Assistant with AI</h1>
             <form action="/search" method="get">
                 <input type="text" name="q" placeholder="Ask a question..." required>
+                <select name="user" style="padding: 10px; font-size: 16px; margin-left: 10px;">
+                    <option value="">All Documents</option>
+                    <option value="Aaron">Aaron</option>
+                    <option value="Brody">Brody</option>
+                    <option value="Dona">Dona</option>
+                    <option value="Eric">Eric</option>
+                    <option value="Grace">Grace</option>
+                    <option value="Jeff">Jeff</option>
+                    <option value="Jessica">Jessica</option>
+                    <option value="Jill">Jill</option>
+                    <option value="John">John</option>
+                    <option value="Jon">Jon</option>
+                    <option value="Kirk">Kirk</option>
+                    <option value="Owen">Owen</option>
+                    <option value="Paul">Paul</option>
+                </select>
                 <button type="submit">Search</button>
             </form>
             <div class="status">
@@ -389,10 +447,11 @@ def home():
 def search():
     """Browser-friendly search endpoint"""
     query = request.args.get('q', '')
+    user = request.args.get('user', '')
     if not query:
         return '<p>Please provide a search query</p>'
     
-    answer = search_all_sources(query)
+    answer = search_all_sources(query, user)
     return f'''
     <html>
         <head>
@@ -405,6 +464,7 @@ def search():
         </head>
         <body>
             <h2>Question: {query}</h2>
+            {f'<p><em>Searching {user}\'s documents first...</em></p>' if user else ''}
             <div class="answer">
                 {answer.replace(chr(10), '<br>')}
             </div>
@@ -417,10 +477,11 @@ def search():
 def api_search():
     """API endpoint - returns JSON or plain text"""
     query = request.args.get('q', '')
+    user = request.args.get('user', '')
     if not query:
         return 'Please provide a search query', 400
     
-    answer = search_all_sources(query)
+    answer = search_all_sources(query, user)
     
     # For iOS Shortcuts - return plain text
     if request.headers.get('User-Agent', '').startswith('Shortcuts'):
@@ -429,6 +490,7 @@ def api_search():
     # For other API clients - return JSON
     return jsonify({
         'query': query,
+        'user': user,
         'answer': answer,
         'ai_enabled': bool(openai_client)
     })
@@ -437,10 +499,11 @@ def api_search():
 def api_search_text():
     """Pure text endpoint for iOS - no JSON, just text"""
     query = request.args.get('q', '')
+    user = request.args.get('user', '')
     if not query:
         return 'Please provide a search query'
     
-    answer = search_all_sources(query)
+    answer = search_all_sources(query, user)
     return answer, 200, {'Content-Type': 'text/plain; charset=utf-8'}
 
 @app.route('/api/status')
@@ -460,6 +523,18 @@ def api_status():
         'google_drive': drive_status,
         'ai_enabled': bool(openai_client),
         'ai_model': 'gpt-4o-mini' if openai_client else None
+    })
+
+@app.route('/api/users')
+def api_users():
+    """Get list of available users for search filtering"""
+    users = list(SEARCH_CONFIG.get('user_folders', {}).keys())
+    # Remove 'WMA Team' from the list as it's not a user
+    users = [u for u in users if u != 'WMA Team']
+    users.sort()
+    return jsonify({
+        'users': users,
+        'total': len(users)
     })
 
 @app.route('/health')
@@ -484,5 +559,5 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"Starting Flask with Google Drive and AI integration on port {port}")
     print(f"AI enabled: {bool(openai_client)}")
-    print(f"VERSION: 3.3.2-OpenAI")
+    print(f"VERSION: 3.4.0-User-Folders")
     app.run(host='0.0.0.0', port=port)
