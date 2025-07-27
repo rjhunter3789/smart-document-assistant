@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Flask app with Google Drive integration and Claude AI summarization
-Searches documents and provides intelligent summaries
+Flask app with Google Drive integration and OpenAI GPT-4o-mini
+Searches documents and provides intelligent AI summaries
+Version: 3.3.2-OpenAI-FIXED
 """
 from flask import Flask, request, jsonify
 import os
