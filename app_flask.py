@@ -373,9 +373,8 @@ def ai_summarize(query, documents, user=None):
         return "\n\n---\n\n".join(simple_results) if simple_results else f"No information found about '{query}'."
     
     # Prepare context for AI
-    context = f"You are a helpful assistant. The user specifically asked: '{query}'\n\n"
-    context += "IMPORTANT: Only provide information that directly answers their question.\n\n"
-    context += "Here are the relevant documents:\n\n"
+    context = f"USER QUESTION: '{query}'\n\n"
+    context += "Below are document excerpts that may contain relevant information. Use ONLY what's relevant to answer the specific question:\n\n"
     
     # Limit context to relevant portions of documents
     for i, doc in enumerate(documents[:5], 1):  # Process up to 5 documents
@@ -402,30 +401,32 @@ def ai_summarize(query, documents, user=None):
         
         context += f"Document {i} - {doc['filename']}{source_info}:\n{content}\n\n"
     
-    # Create prompt based on query type
-    action_words = ['review', 'summarize', 'analyze', 'explain', 'describe', 'list', 'overview',
-                   'what\'s new', 'what is new', 'whats new', 'latest', 'recent', 'update on',
-                   'tell me about', 'give me', 'show me', 'find', 'look up', 'check on']
-    query_lower = query.lower()
-    is_action_query = any(word in query_lower for word in action_words)
+    # Get user profile early to inform prompt creation
+    user_profile = {}
+    if user:
+        user_profile = get_user_profile(user.lower())
     
-    if is_action_query:
-        # Special handling for action/command requests
-        prompt = f"""The user asked: "{query}"
+    # Create prompt that ALWAYS focuses on the specific question
+    prompt = f"""The user asked: "{query}"
 
-Please provide a natural, conversational response that focuses on what they asked about. If they mentioned a specific product or topic (like Impel), make that the main focus of your response. Include related context if it helps answer their question better.
-
-Keep the response helpful and informative while staying relevant to their query."""
-    else:
-        prompt = f"""Based on the documents provided, please give a clear, concise answer to this query: "{query}"
+Based on the documents provided, please answer their SPECIFIC question. Do not provide a general summary of all documents unless explicitly asked.
 
 Instructions:
-- Synthesize information from all relevant documents
-- Be specific and include key facts
-- If quoting directly, mention which document it's from
-- Keep the response under 300 words
-- Focus on answering the user's specific question
-- Use natural language suitable for text-to-speech"""
+- Focus exclusively on answering what they asked about
+- If they asked about a specific product/topic (like Impel), ONLY discuss that
+- Be specific and include relevant key facts from the documents
+- Keep the response concise and to the point
+- Use natural language suitable for text-to-speech
+- If the information isn't in the documents, say so clearly"""
+    
+    # Add personalization based on user profile
+    if user_profile.get('preferences', {}).get('focus_areas'):
+        focus_areas = user_profile['preferences']['focus_areas']
+        if any(area.lower() in query.lower() for area in ['ford', 'dealership', 'digital marketing']):
+            prompt += f"\n- Frame your response considering their expertise in {', '.join(focus_areas[:3])}"
+    
+    if user_profile.get('preferences', {}).get('detail_level') == 'actionable':
+        prompt += "\n- Provide actionable insights when relevant"
 
     try:
         # Get system prompt for additional context
@@ -437,16 +438,14 @@ Instructions:
             user_profile = get_user_profile(user.lower())
         
         # Build system message with user context
-        system_message = "You are a helpful assistant. Answer the user's specific question based on the documents provided."
-        
         if user_profile.get('profile'):
-            system_message = f"""You are a helpful assistant working with {user}. 
-
-About {user}: {user_profile['profile']}
+            system_message = f"""You are an AI assistant working with {user}, a {user_profile['profile']}
 
 {user_profile.get('context', '')}
 
-Answer their specific question based on the documents provided, keeping in mind their background and role."""
+CRITICAL: Answer ONLY the specific question asked. Do not summarize all documents unless explicitly requested. Focus on what {user} asked about, considering their expertise and role."""
+        else:
+            system_message = "You are a helpful assistant. Answer ONLY the specific question asked based on the documents provided. Do not provide general summaries unless explicitly requested."
         
         # Combine context and prompt for OpenAI
         full_prompt = context + "\n" + prompt
