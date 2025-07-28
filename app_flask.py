@@ -390,16 +390,11 @@ def ai_summarize(query, documents):
     
     if is_action_query:
         # Special handling for action/command requests
-        prompt = f"""The user specifically asked: "{query}"
+        prompt = f"""The user asked: "{query}"
 
-CRITICAL INSTRUCTIONS:
-1. ONLY discuss information directly related to their query
-2. If they asked about "Impel", only talk about Impel
-3. If they asked about a specific product, only discuss that product
-4. Do NOT provide general summaries of unrelated topics
-5. Stay focused on exactly what they asked for
+Please provide a natural, conversational response that focuses on what they asked about. If they mentioned a specific product or topic (like Impel), make that the main focus of your response. Include related context if it helps answer their question better.
 
-Based on the documents provided, answer their specific question."""
+Keep the response helpful and informative while staying relevant to their query."""
     else:
         prompt = f"""Based on the documents provided, please give a clear, concise answer to this query: "{query}"
 
