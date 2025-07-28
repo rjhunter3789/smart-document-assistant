@@ -352,15 +352,30 @@ def ai_summarize(query, documents):
         source_info = f" (from {doc.get('source', 'documents')})" if 'source' in doc else ""
         context += f"Document {i} - {doc['filename']}{source_info}:\n{doc['content']}\n\n"
     
-    # Create prompt
-    prompt = f"""Based on the documents provided, please give a clear, concise answer to this query: "{query}"
+    # Create prompt based on query type
+    action_words = ['review', 'summarize', 'analyze', 'explain', 'describe', 'list', 'overview']
+    query_lower = query.lower()
+    is_action_query = any(word in query_lower for word in action_words)
+    
+    if is_action_query and 'review' in query_lower:
+        # Special handling for review/summarize requests
+        prompt = f"""The user asked to: "{query}"
+        
+Please provide a comprehensive summary of the key information from these documents:
+- Focus on main topics, decisions, and action items
+- Highlight important findings or conclusions
+- Organize information by topic or theme
+- Keep the response clear and actionable
+- Do NOT explain what the word 'review' means"""
+    else:
+        prompt = f"""Based on the documents provided, please give a clear, concise answer to this query: "{query}"
 
 Instructions:
 - Synthesize information from all relevant documents
 - Be specific and include key facts
 - If quoting directly, mention which document it's from
 - Keep the response under 300 words
-- Focus on answering the user's specific question
+- Focus on answering the user's specific question"""
 - Use natural language suitable for text-to-speech"""
 
     try:
