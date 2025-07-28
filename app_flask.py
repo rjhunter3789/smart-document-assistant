@@ -207,6 +207,17 @@ def search_google_drive(query, service, user=None):
     
     results = []
     
+    # Check if user mentioned a specific folder
+    folder_keywords = ['product folder', 'products folder', 'project folder', 'team folder']
+    mentioned_folder = None
+    query_lower = query.lower()
+    for folder in folder_keywords:
+        if folder in query_lower:
+            mentioned_folder = folder
+            # Remove folder reference from query for better search
+            query = query.replace(folder, '').replace(folder.title(), '').strip()
+            break
+    
     try:
         # Determine folders to search
         folders_to_search = []
@@ -410,13 +421,8 @@ Instructions:
         # Get system prompt for additional context
         system_prompt = get_system_prompt()
         
-        # Enhance system message with WMA context if available
-        system_message = "You are a helpful document analysis assistant."
-        if system_prompt:
-            system_message = f"""You are the WMA AI Agent helping Jeff and his team analyze dealership documents. 
-{system_prompt[:500]}...
-
-Focus on providing clear, actionable insights from the documents provided."""
+        # Simple, focused system message
+        system_message = "You are a helpful assistant. Answer the user's specific question based on the documents provided. Do not make assumptions about what they're looking for - just answer what they asked."
         
         # Combine context and prompt for OpenAI
         full_prompt = context + "\n" + prompt
