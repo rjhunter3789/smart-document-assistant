@@ -846,13 +846,14 @@ def api_search():
     })
 
 @app.route('/api/search/text')
-def api_search_text():
+@app.route('/api/search/text/<username>')
+def api_search_text(username=None):
     """Pure text endpoint for iOS - no JSON, just text"""
     query = request.args.get('q', '')
-    user = request.args.get('user', '')
+    user = username or request.args.get('user', '')  # Try URL path first, then parameter
     
     # Debug logging
-    print(f"API Search Text - Query: '{query}', User: '{user}'")
+    print(f"API Search Text - Query: '{query}', User: '{user}', Username from path: '{username}'")
     print(f"Full URL: {request.url}")
     print(f"All args: {dict(request.args)}")
     
@@ -921,6 +922,34 @@ def api_users():
 def health():
     """Health check endpoint for Railway"""
     return 'OK', 200
+
+@app.route('/voice')
+def voice_search():
+    """Alternative endpoint for iOS with user parameter first"""
+    user = request.args.get('user', '')
+    query = request.args.get('q', '')
+    
+    print(f"Voice Search - User: '{user}', Query: '{query}'")
+    
+    if not query:
+        return 'Please provide a search query'
+    
+    if not user:
+        return 'User parameter required'
+    
+    # Validate and normalize username
+    user_found = False
+    for valid_user in list(SEARCH_CONFIG.get('users', {}).keys()):
+        if user.lower() == valid_user.lower():
+            user = valid_user
+            user_found = True
+            break
+    
+    if not user_found:
+        return f'Unknown user: {user}'
+    
+    answer = search_all_sources(query, user)
+    return answer, 200, {'Content-Type': 'text/plain; charset=utf-8'}
 
 if __name__ == '__main__':
     # Initialize default admin user if no users exist
