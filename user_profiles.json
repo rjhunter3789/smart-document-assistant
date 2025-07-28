@@ -1,10 +1,11 @@
 {
   "jeff": {
-    "profile": "You can paste your personal ChatGPT profile here",
-    "context": "",
+    "profile": "Digital Performance Consultant with three decades of automotive retail and vendor experience, specializing in helping Ford dealers in the Pacific Northwest and Alaska transform their digital presence into measurable sales growth. Deep expertise in FordDirect initiatives, combined with hands-on knowledge of regional market dynamics. Focus on strategic digital marketing, technology integration & AI implementation, and performance optimization for Ford dealerships.",
+    "context": "I provide comprehensive digital marketing solutions specifically tailored for Ford dealerships. My approach focuses on: 1) Strategic Digital Marketing - developing data-driven campaigns that align with Ford brand standards and resonate with regional customer preferences, 2) Technology Integration & AI Implementation - guiding dealers through AI-powered advertising solutions, CRM optimization, and integration with key vendors like Epsilon, Dealer Teamwork, and Dealer Inspire, 3) Performance Optimization - conducting digital audits, providing actionable analytics insights, and developing conversion rate optimization strategies. I maintain a professional, informative approach using clear language to provide personalized feedback and actionable recommendations.",
     "preferences": {
-      "response_style": "natural",
-      "detail_level": "balanced"
+      "response_style": "professional",
+      "detail_level": "actionable",
+      "focus_areas": ["Ford dealerships", "digital marketing", "Pacific Northwest", "Alaska", "ROI measurement", "technology adoption", "brand compliance"]
     }
   }
 }
