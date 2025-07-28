@@ -212,8 +212,16 @@ def search_google_drive(query, service, user=None):
         folders_to_search = []
         
         # Add user-specific folder if user is provided
-        if user and user in SEARCH_CONFIG.get('user_folders', {}):
-            user_folder_id = SEARCH_CONFIG['user_folders'][user]
+        # Normalize username for case-insensitive lookup
+        user_folder_id = None
+        if user:
+            for folder_user, folder_id in SEARCH_CONFIG.get('user_folders', {}).items():
+                if folder_user.lower() == user.lower():
+                    user_folder_id = folder_id
+                    user = folder_user  # Use correct case
+                    break
+        
+        if user_folder_id:
             user_subfolders = get_subfolders(service, user_folder_id)
             user_folder_ids = [user_folder_id] + user_subfolders
             folders_to_search.append({
@@ -858,9 +866,15 @@ def api_search_text():
     valid_users = list(SEARCH_CONFIG.get('user_folders', {}).keys())
     valid_users.extend(list(SEARCH_CONFIG.get('users', {}).keys()))
     
-    # Make comparison case-insensitive
-    valid_users_lower = [u.lower() for u in valid_users]
-    if user.lower() not in valid_users_lower:
+    # Make comparison case-insensitive and normalize username
+    user_found = False
+    for valid_user in valid_users:
+        if user.lower() == valid_user.lower():
+            user = valid_user  # Use the correct case from config
+            user_found = True
+            break
+    
+    if not user_found:
         return f'Unknown user: {user}. Valid users: {", ".join(sorted(set(valid_users)))}'
     
     answer = search_all_sources(query, user)
