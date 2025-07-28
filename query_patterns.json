@@ -1,0 +1,53 @@
+{
+  "patterns": {
+    "product_inquiry": {
+      "triggers": ["what is", "tell me about", "explain", "describe", "information about", "details on"],
+      "examples": [
+        {"input": "Tell me about Impel", "intent": "product_info", "entity": "Impel"},
+        {"input": "What is Consumer Connection Plus", "intent": "product_info", "entity": "Consumer Connection Plus"},
+        {"input": "Explain the new F-150 features", "intent": "product_info", "entity": "F-150 features"}
+      ]
+    },
+    "comparison": {
+      "triggers": ["difference between", "compare", "versus", "vs", "better than"],
+      "examples": [
+        {"input": "Compare Impel and Consumer Connection", "intent": "comparison", "entities": ["Impel", "Consumer Connection"]},
+        {"input": "What's the difference between digital and traditional marketing", "intent": "comparison", "entities": ["digital marketing", "traditional marketing"]}
+      ]
+    },
+    "status_update": {
+      "triggers": ["what's new with", "latest on", "update on", "status of", "progress on"],
+      "examples": [
+        {"input": "What's new with Ford Direct", "intent": "status_update", "entity": "Ford Direct"},
+        {"input": "Give me an update on the Seattle dealership", "intent": "status_update", "entity": "Seattle dealership"}
+      ]
+    },
+    "action_request": {
+      "triggers": ["how to", "steps to", "process for", "guide for", "help me"],
+      "examples": [
+        {"input": "How to implement AI in dealerships", "intent": "how_to", "entity": "AI implementation"},
+        {"input": "Steps to improve conversion rates", "intent": "how_to", "entity": "conversion rate improvement"}
+      ]
+    },
+    "data_request": {
+      "triggers": ["show me metrics", "what are the numbers", "performance data", "analytics for", "roi on"],
+      "examples": [
+        {"input": "Show me ROI metrics for digital campaigns", "intent": "data_request", "entity": "digital campaign ROI"},
+        {"input": "What are the conversion numbers for Q3", "intent": "data_request", "entity": "Q3 conversion numbers"}
+      ]
+    }
+  },
+  "entity_synonyms": {
+    "ford direct": ["forddirect", "ford-direct", "FD"],
+    "consumer connection": ["consumer connection plus", "cc+", "consumer connect"],
+    "roi": ["return on investment", "returns", "performance"],
+    "ai": ["artificial intelligence", "automation", "smart tools"],
+    "crm": ["customer relationship management", "customer management", "client database"]
+  },
+  "stop_words": ["the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for"],
+  "context_clues": {
+    "ford_specific": ["dealer", "dealership", "ford", "f-150", "mustang", "explorer"],
+    "marketing_specific": ["campaign", "advertising", "digital", "social", "seo", "ppc"],
+    "technical_specific": ["integration", "api", "crm", "system", "platform", "tool"]
+  }
+}

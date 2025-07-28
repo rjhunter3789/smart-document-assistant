@@ -1,0 +1,269 @@
+{
+  "vendors": {
+    "FordDirect": {
+      "full_name": "FordDirect",
+      "category": "Ford Official Digital Solutions",
+      "products": ["VL Plus", "Data Edge", "Digital Mystery Shop", "LVDS", "Social Media Management", "Pre-Owned Vehicle Marketing Services", "Service Lead Marketing", "Quick Lane", "VINReal", "Vehicle Locator Plus"],
+      "focus": "Official Ford and Lincoln digital marketing and technology solutions",
+      "keywords": ["ford direct", "ford official", "oem solutions"]
+    },
+    "Consumer Connection+": {
+      "full_name": "Consumer Connection Plus",
+      "category": "Targeted Marketing",
+      "products": ["1 to 1 Messaging", "Target Retail"],
+      "focus": "Personalized customer engagement and targeted retail marketing",
+      "keywords": ["consumer connection", "cc+", "targeted marketing", "1 to 1"]
+    },
+    "Team Velocity": {
+      "full_name": "Team Velocity Marketing",
+      "category": "Full-Service Digital Agency",
+      "products": ["1 to 1 Messaging", "Website", "Digital Advertising", "Retention Marketing"],
+      "focus": "Comprehensive digital marketing solutions for automotive dealers",
+      "keywords": ["team velocity", "tvm", "digital agency"]
+    },
+    "CDK": {
+      "full_name": "CDK Global",
+      "category": "Dealer Management Systems & Solutions",
+      "products": ["eLead", "Roadster", "AIVA AI"],
+      "focus": "Comprehensive dealership technology and management solutions",
+      "keywords": ["cdk global", "dealer management", "dms"]
+    },
+    "Impel": {
+      "full_name": "Impel AI",
+      "category": "AI-Powered Engagement",
+      "products": ["Chat AI", "Sales AI Co-Pilot", "Service AI"],
+      "focus": "Artificial intelligence solutions for automotive retail engagement",
+      "keywords": ["impel ai", "artificial intelligence", "ai engagement", "chat bot"]
+    },
+    "Dealer.com": {
+      "full_name": "Dealer.com (Cox Automotive)",
+      "category": "Website & Digital Marketing",
+      "products": ["Digital Advertising, SEM, SEO", "Website"],
+      "focus": "Dealership websites and digital marketing solutions",
+      "keywords": ["dealer.com", "cox automotive", "website provider"]
+    },
+    "Dealer Inspire": {
+      "full_name": "Dealer Inspire",
+      "category": "Website & Digital Solutions",
+      "products": ["Digital Advertising, SEM, SEO", "Website", "Chat - Conversations"],
+      "focus": "Award-winning dealership websites and digital tools",
+      "keywords": ["dealer inspire", "di", "website", "chat"]
+    },
+    "DealerOn": {
+      "full_name": "DealerOn",
+      "category": "Website Platform",
+      "products": ["Digital Advertising, SEM, SEO", "Website"],
+      "focus": "Dealership website platform and digital marketing",
+      "keywords": ["dealeron", "website platform"]
+    },
+    "Dealer Teamwork": {
+      "full_name": "Dealer Teamwork MPOP",
+      "category": "Marketing Platform",
+      "products": ["Digital Advertising, SEM, SEO"],
+      "focus": "Multi-point online presence platform for dealerships",
+      "keywords": ["dealer teamwork", "mpop", "marketing platform"]
+    },
+    "Gubagoo": {
+      "full_name": "Gubagoo",
+      "category": "Chat & Digital Retailing",
+      "products": ["Virtual Retailing", "Chat"],
+      "focus": "Conversational commerce and digital retailing solutions",
+      "keywords": ["gubagoo", "chat", "virtual retailing", "digital retail"]
+    },
+    "Podium": {
+      "full_name": "Podium",
+      "category": "Customer Interaction Management",
+      "products": ["AI BDC", "Webchat", "Interaction Management"],
+      "focus": "Messaging platform for customer interaction and reputation management",
+      "keywords": ["podium", "messaging", "interaction management", "webchat"]
+    },
+    "CarNow": {
+      "full_name": "CarNow",
+      "category": "Digital Retailing",
+      "products": ["Real-Time Retail", "Real-Time Messaging"],
+      "focus": "Real-time digital retailing and customer engagement",
+      "keywords": ["carnow", "real time", "digital retail"]
+    },
+    "C-4 Analytics": {
+      "full_name": "C-4 Analytics",
+      "category": "Digital Advertising",
+      "products": ["Digital Advertising, SEM, SEO"],
+      "focus": "Data-driven digital advertising and analytics",
+      "keywords": ["c4 analytics", "c-4", "digital advertising"]
+    },
+    "Stream": {
+      "full_name": "Stream Companies",
+      "category": "Digital Marketing",
+      "products": ["Digital Advertising, SEM, SEO"],
+      "focus": "Automotive digital marketing solutions",
+      "keywords": ["stream", "digital marketing"]
+    },
+    "Marchex": {
+      "full_name": "Marchex",
+      "category": "Call Analytics",
+      "products": ["Call Tracking"],
+      "focus": "Call tracking and conversational analytics",
+      "keywords": ["marchex", "call tracking", "call analytics"]
+    },
+    "DriveCentric": {
+      "full_name": "DriveCentric",
+      "category": "CRM Platform",
+      "products": ["CRM"],
+      "focus": "Cloud-based CRM platform for automotive dealers",
+      "keywords": ["drivecentric", "crm", "customer management"]
+    },
+    "AutoFi": {
+      "full_name": "AutoFi",
+      "category": "Digital Retailing",
+      "products": ["Digital Retailing"],
+      "focus": "Digital financing and retailing platform",
+      "keywords": ["autofi", "digital financing", "online finance"]
+    },
+    "Cox Automotive": {
+      "full_name": "Cox Automotive",
+      "category": "Automotive Solutions",
+      "products": ["Accelerate My Deal"],
+      "focus": "Comprehensive automotive retail solutions",
+      "keywords": ["cox", "accelerate my deal", "digital retail"]
+    },
+    "SOCi": {
+      "full_name": "SOCi",
+      "category": "Social Media Management",
+      "products": ["National Business Listings"],
+      "focus": "Localized social media and reputation management",
+      "keywords": ["soci", "social media", "listings management"]
+    },
+    "Reputation.com": {
+      "full_name": "Reputation.com",
+      "category": "Reputation Management",
+      "products": ["Reputation Management"],
+      "focus": "Online reputation management platform",
+      "keywords": ["reputation.com", "reputation management", "reviews"]
+    },
+    "Jazel": {
+      "full_name": "Jazel Auto",
+      "category": "Website Solutions",
+      "products": ["Website"],
+      "focus": "Automotive website solutions",
+      "keywords": ["jazel", "website", "auto website"]
+    }
+  },
+  "products": {
+    "1 to 1 Messaging": {
+      "vendors": ["Consumer Connection+", "Team Velocity"],
+      "category": "Messaging Solutions",
+      "description": "Personalized one-to-one customer messaging platform",
+      "aliases": ["1-to-1", "One to One Messaging"],
+      "keywords": ["messaging", "personalized", "customer communication"]
+    },
+    "Call Tracking": {
+      "vendor": "Marchex",
+      "category": "Analytics",
+      "description": "Phone call tracking and analytics solution",
+      "aliases": ["Phone Tracking"],
+      "keywords": ["call analytics", "phone tracking", "lead tracking"]
+    },
+    "VL Plus": {
+      "vendor": "FordDirect",
+      "category": "Inventory Management",
+      "description": "Connected Vehicle Lot Management system",
+      "aliases": ["Vehicle Locator Plus", "VLPlus"],
+      "keywords": ["lot management", "inventory", "vehicle tracking"]
+    },
+    "Target Retail": {
+      "vendor": "Consumer Connection+",
+      "category": "Marketing Program",
+      "description": "Targeted retail marketing program for automotive dealers",
+      "aliases": ["Consumer Connection Plus Target Retail"],
+      "keywords": ["targeted marketing", "retail program", "cc+"]
+    },
+    "Chat AI": {
+      "vendor": "Impel",
+      "category": "AI Chat Solution",
+      "description": "AI-powered chat engagement platform",
+      "aliases": ["Impel Chat", "AI Chat"],
+      "keywords": ["artificial intelligence", "chat bot", "customer service"]
+    },
+    "Sales AI Co-Pilot": {
+      "vendor": "Impel",
+      "category": "AI Sales Assistant",
+      "description": "AI-powered sales assistant and co-pilot",
+      "aliases": ["Impel Co-Pilot", "Sales Co-Pilot"],
+      "keywords": ["sales ai", "sales assistant", "ai copilot"]
+    },
+    "Service AI": {
+      "vendor": "Impel",
+      "category": "AI Service Solution",
+      "description": "AI-powered service department assistant",
+      "aliases": ["Impel Service AI"],
+      "keywords": ["service ai", "service assistant", "ai service"]
+    },
+    "Digital Mystery Shop": {
+      "vendor": "FordDirect",
+      "category": "Performance Analysis",
+      "description": "Digital engagement analysis and mystery shopping service",
+      "aliases": ["DMS", "Mystery Shop"],
+      "keywords": ["engagement analysis", "mystery shop", "performance metrics"]
+    },
+    "LVDS": {
+      "vendor": "FordDirect",
+      "category": "Lead Management",
+      "description": "Lead Verification & Delivery Service",
+      "aliases": ["Lead Verification Delivery Service"],
+      "keywords": ["lead verification", "lead delivery", "lead management"]
+    },
+    "Social Media Management": {
+      "vendor": "FordDirect",
+      "category": "Social Media",
+      "description": "Managed social media marketing services",
+      "aliases": ["Managed Social"],
+      "keywords": ["social media", "social marketing", "managed services"]
+    },
+    "Pre-Owned Vehicle Marketing Services": {
+      "vendor": "FordDirect",
+      "category": "Used Vehicle Marketing",
+      "description": "Marketing solutions for pre-owned vehicle inventory",
+      "aliases": ["POVMS", "Pre-Owned Marketing"],
+      "keywords": ["used cars", "pre-owned", "vehicle marketing"]
+    },
+    "VINReal": {
+      "vendor": "FordDirect",
+      "category": "Inventory Marketing",
+      "description": "Vehicle inventory marketing platform",
+      "aliases": ["VIN Real"],
+      "keywords": ["inventory marketing", "vehicle marketing", "vin"]
+    },
+    "Quick Lane": {
+      "vendor": "FordDirect",
+      "category": "Service Marketing",
+      "description": "Quick Lane service center marketing program",
+      "aliases": ["QuickLane"],
+      "keywords": ["quick lane", "service marketing", "oil change"]
+    },
+    "Digital Advertising, SEM, SEO": {
+      "vendors": ["C-4 Analytics", "Dealer.com", "DealerOn", "Dealer Inspire", "Dealer Teamwork", "Stream", "Team Velocity"],
+      "category": "Digital Marketing",
+      "description": "Search engine marketing, SEO, and digital advertising services",
+      "aliases": ["SEM/SEO", "Digital Ads", "Search Marketing"],
+      "keywords": ["sem", "seo", "ppc", "digital advertising", "search marketing"]
+    },
+    "FordDirect AdVantage": {
+      "vendor": "FordDirect",
+      "category": "Advertising Platform",
+      "description": "Ford's official digital advertising platform",
+      "aliases": ["AdVantage", "FD AdVantage"],
+      "keywords": ["ford advertising", "advantage", "digital ads"]
+    }
+  },
+  "categories": {
+    "AI & Automation": ["Chat AI", "Sales AI Co-Pilot", "Service AI", "AIVA AI", "AI BDC"],
+    "Marketing Platforms": ["Target Retail", "1 to 1 Messaging", "Digital Advertising, SEM, SEO", "FordDirect AdVantage"],
+    "Website Solutions": ["Dealer.com", "Dealer Inspire", "DealerOn", "Jazel", "Team Velocity"],
+    "Chat & Messaging": ["Chat AI", "Chat", "Chat - Conversations", "Real-Time Messaging", "Webchat", "1 to 1 Messaging"],
+    "Digital Retailing": ["AutoFi", "Roadster", "Real-Time Retail", "Virtual Retailing", "Accelerate My Deal"],
+    "CRM Systems": ["eLead", "DriveCentric", "Data Edge"],
+    "FordDirect Programs": ["VL Plus", "LVDS", "Digital Mystery Shop", "Social Media Management", "Pre-Owned Vehicle Marketing Services", "Service Lead Marketing", "Quick Lane", "VINReal", "Vehicle Locator Plus", "FordDirect AdVantage"],
+    "Analytics & Tracking": ["Call Tracking", "Digital Mystery Shop", "C-4 Analytics"],
+    "Reputation Management": ["Reputation Management", "Interaction Management", "National Business Listings"]
+  }
+}

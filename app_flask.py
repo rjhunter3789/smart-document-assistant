@@ -200,12 +200,100 @@ def extract_text_from_drive_file(file_id, mime_type, service):
     
     return ""
 
+def load_query_patterns():
+    """Load query patterns for better understanding"""
+    try:
+        with open('query_patterns.json', 'r') as f:
+            return json.load(f)
+    except:
+        return None
+
+def parse_search_query(query):
+    """Advanced natural language query parser"""
+    patterns = load_query_patterns()
+    pv_knowledge = load_products_vendors()
+    
+    # First check if query contains known product/vendor names
+    if pv_knowledge:
+        query_lower = query.lower()
+        
+        # Check for exact product/vendor matches
+        for vendor in pv_knowledge.get('vendors', {}):
+            if vendor.lower() in query_lower:
+                return vendor
+        
+        for product in pv_knowledge.get('products', {}):
+            if product.lower() in query_lower:
+                return product
+            # Check aliases
+            for alias in pv_knowledge['products'][product].get('aliases', []):
+                if alias.lower() in query_lower:
+                    return product
+    
+    # Then try pattern-based extraction
+    if patterns:
+        query_lower = query.lower()
+        
+        # Check for entity synonyms
+        for canonical, synonyms in patterns.get('entity_synonyms', {}).items():
+            for synonym in synonyms:
+                if synonym.lower() in query_lower:
+                    # Replace with canonical form for better search
+                    query_lower = query_lower.replace(synonym.lower(), canonical)
+        
+        # Detect intent and extract entities
+        for pattern_type, pattern_data in patterns.get('patterns', {}).items():
+            for trigger in pattern_data.get('triggers', []):
+                if trigger in query_lower:
+                    # Remove the trigger phrase
+                    search_terms = query_lower.replace(trigger, '').strip()
+                    
+                    # Remove stop words
+                    stop_words = patterns.get('stop_words', [])
+                    words = search_terms.split()
+                    words = [w for w in words if w not in stop_words]
+                    search_terms = ' '.join(words)
+                    
+                    if search_terms:
+                        return search_terms
+    
+    # Fallback to simple extraction
+    phrases_to_remove = [
+        'tell me about', 'what is', 'what are', 'show me', 'find me',
+        'give me information on', 'give me an update on', 'search for',
+        'look up', 'find', 'the product name is', 'the document called',
+        'information about', 'details on', 'summary of', 'review',
+        'can you find', 'do you have', 'is there', 'where is'
+    ]
+    
+    search_query = query.lower()
+    
+    for phrase in phrases_to_remove:
+        if phrase in search_query:
+            search_query = search_query.replace(phrase, '')
+    
+    search_query = ' '.join(search_query.split())
+    search_query = search_query.strip(' .,?!')
+    
+    if len(search_query) < 3:
+        words = query.split()
+        capitalized = [w for w in words if len(w) > 2 and w[0].isupper()]
+        if capitalized:
+            search_query = ' '.join(capitalized)
+        else:
+            search_query = query
+    
+    return search_query
+
 def search_google_drive(query, service, user=None):
     """Search for files in Google Drive with user-specific prioritization"""
     if not service:
         return []
     
     results = []
+    
+    # Parse the query to extract actual search terms
+    search_terms = parse_search_query(query)
     
     # Check if user mentioned a specific folder
     folder_keywords = ['product folder', 'products folder', 'project folder', 'team folder']
@@ -214,8 +302,6 @@ def search_google_drive(query, service, user=None):
     for folder in folder_keywords:
         if folder in query_lower:
             mentioned_folder = folder
-            # Remove folder reference from query for better search
-            query = query.replace(folder, '').replace(folder.title(), '').strip()
             break
     
     try:
@@ -255,7 +341,7 @@ def search_google_drive(query, service, user=None):
         for folder_group in folders_to_search:
             folder_ids = folder_group['folder_ids'][:10]  # Limit to 10 folders per group
             folder_query = " or ".join([f"'{fid}' in parents" for fid in folder_ids])
-            search_query = f"(name contains '{query}' or fullText contains '{query}') and trashed = false and ({folder_query})"
+            search_query = f"(name contains '{search_terms}' or fullText contains '{search_terms}') and trashed = false and ({folder_query})"
             
             response = service.files().list(
                 q=search_query,
@@ -267,7 +353,7 @@ def search_google_drive(query, service, user=None):
             
             for file in files[:3]:  # Process first 3 files per folder group
                 content = extract_text_from_drive_file(file['id'], file['mimeType'], service)
-                if content and query.lower() in content.lower():
+                if content and search_terms.lower() in content.lower():
                     results.append({
                         'filename': file['name'],
                         'content': content[:2000],  # First 2000 chars for AI context
@@ -288,6 +374,9 @@ def search_local_docs(query):
     """Search through local documents in app/docs folder"""
     docs_path = "app/docs"
     results = []
+    
+    # Parse the query to extract actual search terms
+    search_terms = parse_search_query(query)
     
     # List of system files to exclude from search results
     system_files = ['WMA_AI_Agent_System_Prompt.txt', 'WMA_AI_Agent_System_Prompt.docx']
@@ -317,7 +406,7 @@ def search_local_docs(query):
                     content = '\n'.join([paragraph.text for paragraph in doc.paragraphs])
                 
                 # Search for query in content
-                if content and query.lower() in content.lower():
+                if content and search_terms.lower() in content.lower():
                     results.append({
                         'filename': filename,
                         'content': content[:2000],
@@ -347,6 +436,14 @@ def get_user_profile(username):
             return profiles.get(username, {})
     except:
         return {}
+
+def load_products_vendors():
+    """Load product and vendor knowledge base"""
+    try:
+        with open('products_vendors.json', 'r') as f:
+            return json.load(f)
+    except:
+        return None
 
 def ai_summarize(query, documents, user=None):
     """Use OpenAI GPT to intelligently summarize search results"""
@@ -406,9 +503,27 @@ def ai_summarize(query, documents, user=None):
     if user:
         user_profile = get_user_profile(user.lower())
     
+    # Load product/vendor knowledge
+    pv_knowledge = load_products_vendors()
+    
+    # Check if query mentions known products/vendors
+    product_context = ""
+    if pv_knowledge:
+        query_lower = query.lower()
+        
+        # Check for vendor mentions
+        for vendor, info in pv_knowledge.get('vendors', {}).items():
+            if vendor.lower() in query_lower or any(kw.lower() in query_lower for kw in info.get('keywords', [])):
+                product_context += f"\nContext: {vendor} is {info['focus']}. Category: {info['category']}."
+        
+        # Check for product mentions
+        for product, info in pv_knowledge.get('products', {}).items():
+            if product.lower() in query_lower or any(alias.lower() in query_lower for alias in info.get('aliases', [])):
+                product_context += f"\nContext: {product} is a {info['category']} by {info['vendor']}. {info['description']}"
+    
     # Create prompt that ALWAYS focuses on the specific question
     prompt = f"""The user asked: "{query}"
-
+{product_context}
 Based on the documents provided, please answer their SPECIFIC question. Do not provide a general summary of all documents unless explicitly asked.
 
 Instructions:
@@ -469,6 +584,12 @@ CRITICAL: Answer ONLY the specific question asked. Do not summarize all document
 
 def search_all_sources(query, user=None):
     """Search both local files and Google Drive with user prioritization, then AI summarize"""
+    print(f"\n=== SEARCH DEBUG ===")
+    print(f"Original query: '{query}'")
+    print(f"Parsed search terms: '{parse_search_query(query)}'")
+    print(f"User: '{user}'")
+    print("==================\n")
+    
     all_documents = []
     
     # Search local files
