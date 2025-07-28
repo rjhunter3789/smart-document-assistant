@@ -378,7 +378,7 @@ Instructions:
 - Be specific and include key facts
 - If quoting directly, mention which document it's from
 - Keep the response under 300 words
-- Focus on answering the user's specific question"""
+- Focus on answering the user's specific question
 - Use natural language suitable for text-to-speech"""
 
     try:
@@ -794,7 +794,7 @@ def delete_user():
 @app.route('/admin/change-password', methods=['POST'])
 @admin_required
 def change_password():
-    """Change a user's password"""
+    """Change a user password"""
     global SEARCH_CONFIG
     
     username = request.form.get('username')
