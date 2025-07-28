@@ -353,20 +353,23 @@ def ai_summarize(query, documents):
         context += f"Document {i} - {doc['filename']}{source_info}:\n{doc['content']}\n\n"
     
     # Create prompt based on query type
-    action_words = ['review', 'summarize', 'analyze', 'explain', 'describe', 'list', 'overview']
+    action_words = ['review', 'summarize', 'analyze', 'explain', 'describe', 'list', 'overview',
+                   'what\'s new', 'what is new', 'whats new', 'latest', 'recent', 'update on',
+                   'tell me about', 'give me', 'show me', 'find', 'look up', 'check on']
     query_lower = query.lower()
     is_action_query = any(word in query_lower for word in action_words)
     
-    if is_action_query and 'review' in query_lower:
-        # Special handling for review/summarize requests
-        prompt = f"""The user asked to: "{query}"
+    if is_action_query:
+        # Special handling for action/command requests
+        prompt = f"""The user asked: "{query}"
         
-Please provide a comprehensive summary of the key information from these documents:
-- Focus on main topics, decisions, and action items
-- Highlight important findings or conclusions
-- Organize information by topic or theme
-- Keep the response clear and actionable
-- Do NOT explain what the word 'review' means"""
+Please provide a helpful response based on the documents:
+- If they want recent/latest info, focus on the most current information
+- If they want a summary/review, provide key points and takeaways
+- If they want an update, highlight what's new or changed
+- Focus on answering their actual intent, not defining terms
+- Keep the response clear, concise, and actionable
+- Use natural language suitable for voice output"""
     else:
         prompt = f"""Based on the documents provided, please give a clear, concise answer to this query: "{query}"
 
