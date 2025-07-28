@@ -268,6 +268,9 @@ def parse_search_query(query):
     
     search_query = query.lower()
     
+    # Sort phrases by length (longest first) to avoid partial matches
+    phrases_to_remove.sort(key=len, reverse=True)
+    
     for phrase in phrases_to_remove:
         if phrase in search_query:
             search_query = search_query.replace(phrase, '')
@@ -607,6 +610,22 @@ def search_all_sources(query, user=None):
     if not all_documents:
         # Parse query to show what we actually searched for
         search_terms = parse_search_query(query)
+        # If no documents but we have product knowledge, use that
+        pv_knowledge = load_products_vendors()
+        if pv_knowledge and search_terms:
+            search_lower = search_terms.lower()
+            
+            # Check vendors
+            for vendor, info in pv_knowledge.get('vendors', {}).items():
+                if vendor.lower() == search_lower:
+                    return f"{vendor} is {info['focus']}. Category: {info['category']}. Products include: {', '.join(info['products'][:3])}."
+            
+            # Check products  
+            for product, info in pv_knowledge.get('products', {}).items():
+                if product.lower() == search_lower:
+                    vendor_info = info.get('vendor') or ', '.join(info.get('vendors', []))
+                    return f"{product} is a {info['category']} by {vendor_info}. {info['description']}"
+        
         return f"No information found about '{search_terms}' in documents."
     
     # If user asked about a specific document/product, prioritize exact matches
