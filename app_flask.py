@@ -851,6 +851,11 @@ def api_search_text():
     query = request.args.get('q', '')
     user = request.args.get('user', '')
     
+    # Debug logging
+    print(f"API Search Text - Query: '{query}', User: '{user}'")
+    print(f"Full URL: {request.url}")
+    print(f"All args: {dict(request.args)}")
+    
     if not query:
         return 'Please provide a search query'
     
