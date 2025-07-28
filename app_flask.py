@@ -2,7 +2,7 @@
 """
 Flask app with Google Drive integration, OpenAI GPT-4o-mini, and User Authentication
 Searches documents and provides intelligent AI summaries with user-specific folder prioritization
-Version: 4.0.0-Authentication
+Version: 4.2.0-AI-Enhanced - Added query parsing, product knowledge base, and personal profiles
 """
 from flask import Flask, request, jsonify, render_template_string, redirect, url_for, session
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
@@ -1255,5 +1255,5 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"Starting Flask with Authentication on port {port}")
     print(f"AI enabled: {bool(openai_client)}")
-    print(f"VERSION: 4.0.0-Authentication")
+    print(f"VERSION: 4.2.0-AI-Enhanced")
     app.run(host='0.0.0.0', port=port)
