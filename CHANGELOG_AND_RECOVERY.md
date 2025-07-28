@@ -4,6 +4,22 @@
 
 > **Note:** Full code snapshots are preserved in Git history. This changelog contains only version summaries and key features for easier reading.
 
+### Version 4.2.0 - Personal AI Profiles (2025-07-28)
+
+**Personalized AI Context System**
+
+**Major Features:**
+- Personal profile system for customized AI responses
+- Web interface at `/profile` for editing personal context
+- Users can tell the AI who they are and what they do
+- Automatically applies personal context to all voice/search queries
+- Mobile/iOS automatically uses profiles via user parameter
+
+**Technical:**
+- New `user_profiles.json` stores personal context
+- Profile data integrated into AI prompt generation
+- Preferences for response style and detail level
+
 ### Version 4.1.0 - Voice Commands & Natural Language (2025-07-27)
 
 **Voice Assistant Optimization**
@@ -204,5 +220,5 @@ git revert HEAD
 
 ---
 
-Last Updated: 2025-07-26
+Last Updated: 2025-07-28
 Maintained by: Jeff Hunter (rjhunter3789)

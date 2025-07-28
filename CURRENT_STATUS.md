@@ -4,7 +4,7 @@
 
 A voice-activated document search assistant that works with iOS Shortcuts and web browsers.
 
-### Current Version: 4.1.0 (July 27, 2025)
+### Current Version: 4.2.0 (July 28, 2025)
 
 ## ✅ What's Working
 
@@ -13,6 +13,7 @@ A voice-activated document search assistant that works with iOS Shortcuts and we
 - Personalized results from user folders
 - AI-powered summaries with GPT-4o-mini
 - Text display and voice readout
+- Personal AI profiles for customized responses
 
 ### Web Access
 - Secure login system at https://web-production-4dcb7c.up.railway.app
@@ -35,6 +36,7 @@ https://web-production-4dcb7c.up.railway.app/voice?user=YOUR_NAME&q={{Dictated T
 3. **Natural Voice Commands** - "What's new with...", "Give me an update on..."
 4. **Folder Prioritization** - Searches user's folder first, then team folder
 5. **Multi-format Support** - PDF, DOCX, TXT, Google Docs
+6. **Personal AI Profiles** - Customize AI responses with personal context
 
 ## 📂 Documentation Files
 
@@ -51,8 +53,10 @@ https://web-production-4dcb7c.up.railway.app/voice?user=YOUR_NAME&q={{Dictated T
 - **Hosting**: Railway
 - **Auth**: Flask-Login with sessions
 
-## 🎯 Recent Fixes
+## 🎯 Recent Updates
 
+- Personal AI profile system added
+- Web interface for editing profiles at /profile
 - iOS Shortcuts parameter handling (/voice endpoint)
 - Case-insensitive usernames
 - Natural language understanding
