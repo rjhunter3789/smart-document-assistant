@@ -85,7 +85,7 @@ class User(UserMixin):
     def __init__(self, username):
         self.id = username
         self.username = username
-        self.is_admin = username == 'Jeff'
+        self.is_admin = username.lower() == 'jeff'
 
 @login_manager.user_loader
 def load_user(username):
