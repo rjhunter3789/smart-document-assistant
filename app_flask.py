@@ -1248,25 +1248,8 @@ def voice_search():
     user = request.args.get('user', '')
     query = request.args.get('q', '')
     
-    # Debug logging
-    print(f"\n=== VOICE ENDPOINT DEBUG ===")
-    print(f"Raw query string: {request.query_string}")
-    print(f"Full URL: {request.url}")
-    print(f"User param: '{user}'")
-    print(f"Query param: '{query}'")
-    print(f"Query length: {len(query)}")
-    print(f"Query repr: {repr(query)}")
-    print(f"VERSION: 4.2.0-DEBUG")
-    print("==========================\n")
-    
-    # If query contains "debug", return debug info
-    if 'debug' in query.lower():
-        return f"DEBUG INFO:\nUser: '{user}'\nQuery: '{query}'\nQuery length: {len(query)}\nQuery repr: {repr(query)}"
-    
-    # Force use the same logic as the working desktop search
-    if query.lower().startswith('tell me about'):
-        query = query[13:].strip()  # Remove "tell me about"
-        print(f"Extracted search term: '{query}'")
+    print(f"Voice Search - User: '{user}', Query: '{query}'")
+    print(f"VERSION: 4.2.1-REVERTED")
     
     if not query:
         return 'Please provide a search query'
