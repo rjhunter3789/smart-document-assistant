@@ -461,6 +461,20 @@ def search_all_sources(query, user=None):
     if not all_documents:
         return f"No information found about '{query}' in documents."
     
+    # If user asked about a specific document/product, prioritize exact matches
+    query_lower = query.lower()
+    if any(specific in query_lower for specific in ['impel', 'specific product', 'document']):
+        # Sort documents to put exact matches first
+        exact_matches = []
+        partial_matches = []
+        for doc in all_documents:
+            doc_name_lower = doc['filename'].lower()
+            if 'impel' in query_lower and 'impel' in doc_name_lower:
+                exact_matches.append(doc)
+            else:
+                partial_matches.append(doc)
+        all_documents = exact_matches + partial_matches[:2]  # Limit non-exact matches
+    
     # Use AI to summarize findings
     return ai_summarize(query, all_documents)
 
