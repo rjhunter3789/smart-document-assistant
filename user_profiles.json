@@ -1,0 +1,10 @@
+{
+  "jeff": {
+    "profile": "You can paste your personal ChatGPT profile here",
+    "context": "",
+    "preferences": {
+      "response_style": "natural",
+      "detail_level": "balanced"
+    }
+  }
+}

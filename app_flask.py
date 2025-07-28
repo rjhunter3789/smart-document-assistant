@@ -339,10 +339,20 @@ def get_system_prompt():
         pass
     return ""
 
-def ai_summarize(query, documents):
+def get_user_profile(username):
+    """Get user's personal profile if it exists"""
+    try:
+        with open('user_profiles.json', 'r') as f:
+            profiles = json.load(f)
+            return profiles.get(username, {})
+    except:
+        return {}
+
+def ai_summarize(query, documents, user=None):
     """Use OpenAI GPT to intelligently summarize search results"""
     print(f"\n=== AI Summarize Debug ===")
     print(f"Query: '{query}'")
+    print(f"User: '{user}'")
     print(f"Number of documents found: {len(documents)}")
     for i, doc in enumerate(documents[:3]):
         print(f"Document {i+1}: {doc['filename']} (from {doc.get('source', 'Unknown')})")
@@ -421,8 +431,22 @@ Instructions:
         # Get system prompt for additional context
         system_prompt = get_system_prompt()
         
-        # Simple, focused system message
-        system_message = "You are a helpful assistant. Answer the user's specific question based on the documents provided. Do not make assumptions about what they're looking for - just answer what they asked."
+        # Get user profile if available
+        user_profile = {}
+        if user:
+            user_profile = get_user_profile(user.lower())
+        
+        # Build system message with user context
+        system_message = "You are a helpful assistant. Answer the user's specific question based on the documents provided."
+        
+        if user_profile.get('profile'):
+            system_message = f"""You are a helpful assistant working with {user}. 
+
+About {user}: {user_profile['profile']}
+
+{user_profile.get('context', '')}
+
+Answer their specific question based on the documents provided, keeping in mind their background and role."""
         
         # Combine context and prompt for OpenAI
         full_prompt = context + "\n" + prompt
@@ -476,7 +500,7 @@ def search_all_sources(query, user=None):
         all_documents = exact_matches + partial_matches[:2]  # Limit non-exact matches
     
     # Use AI to summarize findings
-    return ai_summarize(query, all_documents)
+    return ai_summarize(query, all_documents, user)
 
 # HTML Templates
 LOGIN_TEMPLATE = '''
@@ -527,6 +551,7 @@ HOME_TEMPLATE = '''
     <body>
         <div class="user-info">
             Welcome, {{ current_user.username }}
+            | <a href="/profile">My Profile</a>
             {% if current_user.is_admin %}
             | <a href="/admin">Admin Panel</a>
             {% endif %}
@@ -980,6 +1005,78 @@ def api_users():
         'users': users,
         'total': len(users)
     })
+
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def user_profile():
+    """View and edit user profile"""
+    if request.method == 'POST':
+        profile_data = {
+            'profile': request.form.get('profile', ''),
+            'context': request.form.get('context', ''),
+            'preferences': {
+                'response_style': request.form.get('response_style', 'natural'),
+                'detail_level': request.form.get('detail_level', 'balanced')
+            }
+        }
+        
+        # Load existing profiles
+        try:
+            with open('user_profiles.json', 'r') as f:
+                profiles = json.load(f)
+        except:
+            profiles = {}
+        
+        # Update user's profile
+        profiles[current_user.username.lower()] = profile_data
+        
+        # Save profiles
+        with open('user_profiles.json', 'w') as f:
+            json.dump(profiles, f, indent=2)
+        
+        return redirect(url_for('user_profile', saved='true'))
+    
+    # GET request - show profile form
+    user_profile = get_user_profile(current_user.username.lower())
+    
+    return f'''
+    <html>
+        <head>
+            <title>My Profile - Smart Document Assistant</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }}
+                h1 {{ color: #333; }}
+                textarea {{ width: 100%; padding: 10px; font-size: 14px; }}
+                button {{ padding: 10px 20px; font-size: 16px; background: #007bff; color: white; border: none; cursor: pointer; }}
+                button:hover {{ background: #0056b3; }}
+                .success {{ background: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin: 10px 0; }}
+                .back {{ float: right; color: #007bff; text-decoration: none; }}
+            </style>
+        </head>
+        <body>
+            <a href="/" class="back">← Back to Search</a>
+            <h1>My AI Profile</h1>
+            
+            {'<div class="success">Profile saved successfully!</div>' if request.args.get('saved') else ''}
+            
+            <form method="post">
+                <h3>Tell the AI about yourself:</h3>
+                <p>This helps the AI understand your role and provide more relevant responses.</p>
+                <textarea name="profile" rows="6" placeholder="Example: I am Jeff, a Digital Performance Consultant managing 31 Ford dealerships in the Pacific Northwest. I focus on...">{user_profile.get('profile', '')}</textarea>
+                
+                <h3>Additional Context (optional):</h3>
+                <textarea name="context" rows="4" placeholder="Any specific preferences, areas of focus, or context the AI should know...">{user_profile.get('context', '')}</textarea>
+                
+                <br><br>
+                <button type="submit">Save Profile</button>
+            </form>
+            
+            <p style="margin-top: 30px; color: #666;">
+                <strong>Note:</strong> This profile is private to you and will only be used when you're logged in or using your iOS shortcut.
+            </p>
+        </body>
+    </html>
+    '''
 
 @app.route('/health')
 def health():
