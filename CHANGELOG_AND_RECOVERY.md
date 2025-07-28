@@ -4,6 +4,63 @@
 
 > **Note:** Full code snapshots are preserved in Git history. This changelog contains only version summaries and key features for easier reading.
 
+### Version 4.1.0 - Voice Commands & Natural Language (2025-07-27)
+
+**Voice Assistant Optimization**
+
+**Major Features:**
+- Natural language command recognition ("What's new with...", "Give me an update on...")
+- Fixed AI to understand user intent instead of defining terms
+- New `/voice` endpoint that properly handles iOS Shortcuts parameters
+- Voice Commands Guide for team reference
+
+**Fixes:**
+- iOS Shortcuts now work reliably with user parameter
+- AI no longer explains what "review" means when asked to review documents
+
+### Version 4.0.0 - User Authentication & Team Access (2025-07-27)
+
+**Complete Multi-User System**
+
+**Major Features:**
+- User authentication with Flask-Login
+- Each user only sees their folder + WMA Team folder
+- Admin panel at `/admin` for user management
+- Password change functionality
+- All 13 team members pre-configured
+- Case-insensitive username handling
+
+**Technical:**
+- Lowercase usernames throughout system
+- Fixed bcrypt password compatibility issues
+- iOS Shortcuts work without login via user parameter
+
+### Version 3.4.0 - Smart Folder Prioritization (2025-07-27)
+
+**Personalized Search Results**
+
+**Major Features:**
+- User-specific folder prioritization
+- Search user's folder first (2x weight), then team folder
+- Support for all 13 team members with individual folders
+- Web interface with user selection dropdown
+- iOS Shortcuts support with &user= parameter
+
+### Version 3.3.2 - OpenAI Integration (2025-07-27)
+
+**AI-Powered Summaries with GPT-4o-mini**
+
+**Major Features:**
+- Replaced Claude with OpenAI GPT-4o-mini
+- Fixed Railway proxy issues with custom httpx client
+- Intelligent document summarization
+- Natural language responses optimized for voice
+
+**Technical Fixes:**
+- Resolved Railway environment proxy injection
+- Custom httpx client with trust_env=False
+- OpenAI 1.35.0 compatibility
+
 ### Version 3.3.0 - Google Drive Integration Complete (2025-07-26)
 
 **FINAL MILESTONE - Full Google Drive Search via iOS Shortcuts!**

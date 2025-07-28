@@ -19,10 +19,11 @@ Quick setup to use voice commands for document search on your phone.
 4. **Set up the URL**
    - In the URL field, enter:
    ```
-   https://web-production-4dcb7c.up.railway.app/api/search/text?q={{Dictated Text}}&user=YOUR_NAME
+   https://web-production-4dcb7c.up.railway.app/voice?user=YOUR_NAME&q={{Dictated Text}}
    ```
-   - Replace YOUR_NAME with your username (jeff, sarah, mike, etc.)
-   - The {{Dictated Text}} should appear as a blue bubble
+   - Replace YOUR_NAME with your username (jeff, aaron, brody, etc.)
+   - IMPORTANT: Make sure "user=YOUR_NAME" comes BEFORE the blue bubble
+   - The {{Dictated Text}} should appear as a blue bubble after &q=
 
 5. **Add display actions:**
    - Add Action → Search "Quick Look" → Select "Show in Quick Look"
@@ -59,8 +60,8 @@ Quick setup to use voice commands for document search on your phone.
 
 ## Your Login Info
 - **URL:** https://web-production-4dcb7c.up.railway.app
-- **Username:** Your first name (lowercase)
-- **Password:** Provided by Jeff
+- **Username:** Your first name (lowercase: jeff, aaron, brody, dona, eric, grace, jessica, jill, john, jon, kirk, owen, paul)
+- **Password:** Provided by Jeff (default is yourname + 123)
 
 ## Need Help?
 Contact Jeff for your password or technical help.
