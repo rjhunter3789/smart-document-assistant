@@ -15,7 +15,7 @@ google-auth-httplib2==0.1.1
 PyMuPDF==1.23.8
 python-docx==1.1.0
 
-# AI Integration
+# AI Integration - v4.2.0
 openai==1.35.0
 httpx==0.27.0
 

@@ -1214,6 +1214,8 @@ def voice_search():
     query = request.args.get('q', '')
     
     print(f"Voice Search - User: '{user}', Query: '{query}'")
+    print(f"VERSION CHECK: 4.2.0-AI-Enhanced")
+    print(f"Parse function exists: {callable(parse_search_query)}")
     
     if not query:
         return 'Please provide a search query'

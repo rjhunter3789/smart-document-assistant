@@ -1,0 +1,7 @@
+Version: 4.2.0-AI-Enhanced
+Deploy Date: 2025-07-28
+Changes:
+- Fixed query parsing ("Tell me about X" now works)
+- Added products_vendors.json knowledge base
+- Added user profiles for personalized AI
+- Improved natural language understanding
