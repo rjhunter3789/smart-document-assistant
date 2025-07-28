@@ -294,6 +294,7 @@ def search_google_drive(query, service, user=None):
     
     # Parse the query to extract actual search terms
     search_terms = parse_search_query(query)
+    print(f"[DRIVE SEARCH] Original query: '{query}' -> Parsed terms: '{search_terms}'")
     
     # Check if user mentioned a specific folder
     folder_keywords = ['product folder', 'products folder', 'project folder', 'team folder']
@@ -377,6 +378,7 @@ def search_local_docs(query):
     
     # Parse the query to extract actual search terms
     search_terms = parse_search_query(query)
+    print(f"[DRIVE SEARCH] Original query: '{query}' -> Parsed terms: '{search_terms}'")
     
     # List of system files to exclude from search results
     system_files = ['WMA_AI_Agent_System_Prompt.txt', 'WMA_AI_Agent_System_Prompt.docx']
@@ -603,7 +605,9 @@ def search_all_sources(query, user=None):
         all_documents.extend(drive_results)
     
     if not all_documents:
-        return f"No information found about '{query}' in documents."
+        # Parse query to show what we actually searched for
+        search_terms = parse_search_query(query)
+        return f"No information found about '{search_terms}' in documents."
     
     # If user asked about a specific document/product, prioritize exact matches
     query_lower = query.lower()
