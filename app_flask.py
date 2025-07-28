@@ -1233,8 +1233,13 @@ def voice_search():
     query = request.args.get('q', '')
     
     print(f"Voice Search - User: '{user}', Query: '{query}'")
-    print(f"VERSION CHECK: 4.2.0-AI-Enhanced")
+    print(f"VERSION CHECK: 4.2.0-AI-Enhanced - VOICE ENDPOINT UPDATED")
     print(f"Parse function exists: {callable(parse_search_query)}")
+    
+    # Force use the same logic as the working desktop search
+    if query.lower().startswith('tell me about'):
+        query = query[13:].strip()  # Remove "tell me about"
+        print(f"Extracted search term: '{query}'")
     
     if not query:
         return 'Please provide a search query'
