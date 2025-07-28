@@ -1226,15 +1226,42 @@ def health():
     """Health check endpoint for Railway"""
     return 'OK', 200
 
+@app.route('/test-ios')
+def test_ios():
+    """Test endpoint to debug iOS issues"""
+    user = request.args.get('user', 'NO_USER')
+    query = request.args.get('q', 'NO_QUERY')
+    
+    # Return detailed debug info
+    return f"""iOS Test Results:
+User: {user}
+Query: {query}
+Query Length: {len(query)}
+First 5 chars: {query[:5] if len(query) >= 5 else query}
+URL: {request.url}
+Raw Query String: {request.query_string.decode('utf-8')}
+"""
+
 @app.route('/voice')
 def voice_search():
     """Alternative endpoint for iOS with user parameter first"""
     user = request.args.get('user', '')
     query = request.args.get('q', '')
     
-    print(f"Voice Search - User: '{user}', Query: '{query}'")
-    print(f"VERSION CHECK: 4.2.0-AI-Enhanced - VOICE ENDPOINT UPDATED")
-    print(f"Parse function exists: {callable(parse_search_query)}")
+    # Debug logging
+    print(f"\n=== VOICE ENDPOINT DEBUG ===")
+    print(f"Raw query string: {request.query_string}")
+    print(f"Full URL: {request.url}")
+    print(f"User param: '{user}'")
+    print(f"Query param: '{query}'")
+    print(f"Query length: {len(query)}")
+    print(f"Query repr: {repr(query)}")
+    print(f"VERSION: 4.2.0-DEBUG")
+    print("==========================\n")
+    
+    # If query contains "debug", return debug info
+    if 'debug' in query.lower():
+        return f"DEBUG INFO:\nUser: '{user}'\nQuery: '{query}'\nQuery length: {len(query)}\nQuery repr: {repr(query)}"
     
     # Force use the same logic as the working desktop search
     if query.lower().startswith('tell me about'):
