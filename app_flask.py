@@ -330,6 +330,13 @@ def get_system_prompt():
 
 def ai_summarize(query, documents):
     """Use OpenAI GPT to intelligently summarize search results"""
+    print(f"\n=== AI Summarize Debug ===")
+    print(f"Query: '{query}'")
+    print(f"Number of documents found: {len(documents)}")
+    for i, doc in enumerate(documents[:3]):
+        print(f"Document {i+1}: {doc['filename']} (from {doc.get('source', 'Unknown')})")
+    print("========================\n")
+    
     if not openai_client or not documents:
         # Fallback to simple extraction if no AI available
         simple_results = []
@@ -345,12 +352,34 @@ def ai_summarize(query, documents):
         return "\n\n---\n\n".join(simple_results) if simple_results else f"No information found about '{query}'."
     
     # Prepare context for AI
-    context = f"You are a helpful assistant searching documents for information about: {query}\n\n"
+    context = f"You are a helpful assistant. The user specifically asked: '{query}'\n\n"
+    context += "IMPORTANT: Only provide information that directly answers their question.\n\n"
     context += "Here are the relevant documents:\n\n"
     
+    # Limit context to relevant portions of documents
     for i, doc in enumerate(documents[:5], 1):  # Process up to 5 documents
         source_info = f" (from {doc.get('source', 'documents')})" if 'source' in doc else ""
-        context += f"Document {i} - {doc['filename']}{source_info}:\n{doc['content']}\n\n"
+        
+        # Try to extract only relevant portions instead of full document
+        content = doc['content']
+        if len(content) > 3000:  # If document is very long
+            # Find most relevant section
+            query_words = query.lower().split()
+            best_start = 0
+            best_score = 0
+            
+            # Sliding window to find most relevant section
+            for start in range(0, len(content) - 1000, 500):
+                section = content[start:start + 2000].lower()
+                score = sum(1 for word in query_words if word in section)
+                if score > best_score:
+                    best_score = score
+                    best_start = start
+            
+            # Extract relevant section
+            content = "..." + content[best_start:best_start + 2000] + "..."
+        
+        context += f"Document {i} - {doc['filename']}{source_info}:\n{content}\n\n"
     
     # Create prompt based on query type
     action_words = ['review', 'summarize', 'analyze', 'explain', 'describe', 'list', 'overview',
@@ -361,15 +390,16 @@ def ai_summarize(query, documents):
     
     if is_action_query:
         # Special handling for action/command requests
-        prompt = f"""The user asked: "{query}"
-        
-Please provide a helpful response based on the documents:
-- If they want recent/latest info, focus on the most current information
-- If they want a summary/review, provide key points and takeaways
-- If they want an update, highlight what's new or changed
-- Focus on answering their actual intent, not defining terms
-- Keep the response clear, concise, and actionable
-- Use natural language suitable for voice output"""
+        prompt = f"""The user specifically asked: "{query}"
+
+CRITICAL INSTRUCTIONS:
+1. ONLY discuss information directly related to their query
+2. If they asked about "Impel", only talk about Impel
+3. If they asked about a specific product, only discuss that product
+4. Do NOT provide general summaries of unrelated topics
+5. Stay focused on exactly what they asked for
+
+Based on the documents provided, answer their specific question."""
     else:
         prompt = f"""Based on the documents provided, please give a clear, concise answer to this query: "{query}"
 
