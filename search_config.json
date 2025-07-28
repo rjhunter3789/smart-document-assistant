@@ -20,5 +20,45 @@
     "user_folder": 2.0,
     "team_folder": 1.0
   },
-  "users": {}
+  "users": {
+    "jeff": {
+      "password": "$2b$10$YZqeJ.WuE3NYfXHYVzZdreOFfT97k6aZoMGJNQIqr/rVb.pGn6nJe"
+    },
+    "aaron": {
+      "password": "NEEDS_REHASH:aaron123"
+    },
+    "brody": {
+      "password": "NEEDS_REHASH:brody123"
+    },
+    "dona": {
+      "password": "NEEDS_REHASH:dona123"
+    },
+    "eric": {
+      "password": "NEEDS_REHASH:eric123"
+    },
+    "grace": {
+      "password": "NEEDS_REHASH:grace123"
+    },
+    "jessica": {
+      "password": "NEEDS_REHASH:jessica123"
+    },
+    "jill": {
+      "password": "NEEDS_REHASH:jill123"
+    },
+    "john": {
+      "password": "NEEDS_REHASH:john123"
+    },
+    "jon": {
+      "password": "NEEDS_REHASH:jon123"
+    },
+    "kirk": {
+      "password": "NEEDS_REHASH:kirk123"
+    },
+    "owen": {
+      "password": "NEEDS_REHASH:owen123"
+    },
+    "paul": {
+      "password": "NEEDS_REHASH:paul123"
+    }
+  }
 }

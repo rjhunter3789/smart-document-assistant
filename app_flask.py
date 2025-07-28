@@ -587,12 +587,32 @@ def login():
         password = request.form.get('password')
         
         users = SEARCH_CONFIG.get('users', {})
-        if username in users and check_password_hash(users[username]['password'], password):
-            user = User(username)
-            login_user(user, remember=True)
-            session.permanent = True
-            next_page = request.args.get('next')
-            return redirect(next_page or url_for('home'))
+        if username in users:
+            stored_password = users[username]['password']
+            
+            # Handle placeholder passwords for initial setup
+            if stored_password.startswith('NEEDS_REHASH:'):
+                expected_password = stored_password.replace('NEEDS_REHASH:', '')
+                if password == expected_password:
+                    # Update with proper hash
+                    users[username]['password'] = generate_password_hash(password)
+                    try:
+                        with open('search_config.json', 'w') as f:
+                            json.dump(SEARCH_CONFIG, f, indent=2)
+                    except:
+                        pass
+                    
+                    user = User(username)
+                    login_user(user, remember=True)
+                    session.permanent = True
+                    next_page = request.args.get('next')
+                    return redirect(next_page or url_for('home'))
+            elif check_password_hash(stored_password, password):
+                user = User(username)
+                login_user(user, remember=True)
+                session.permanent = True
+                next_page = request.args.get('next')
+                return redirect(next_page or url_for('home'))
         else:
             return render_template_string(LOGIN_TEMPLATE, error='Invalid username or password')
     
