@@ -608,25 +608,28 @@ def search_all_sources(query, user=None):
         all_documents.extend(drive_results)
     
     if not all_documents:
-        # Parse query to show what we actually searched for
-        search_terms = parse_search_query(query)
-        # If no documents but we have product knowledge, use that
+        # Check product knowledge base for direct matches
         pv_knowledge = load_products_vendors()
-        if pv_knowledge and search_terms:
-            search_lower = search_terms.lower()
+        if pv_knowledge:
+            query_lower = query.lower()
             
             # Check vendors
             for vendor, info in pv_knowledge.get('vendors', {}).items():
-                if vendor.lower() == search_lower:
+                if vendor.lower() in query_lower or query_lower in vendor.lower():
                     return f"{vendor} is {info['focus']}. Category: {info['category']}. Products include: {', '.join(info['products'][:3])}."
             
             # Check products  
             for product, info in pv_knowledge.get('products', {}).items():
-                if product.lower() == search_lower:
+                if product.lower() in query_lower or query_lower in product.lower():
                     vendor_info = info.get('vendor') or ', '.join(info.get('vendors', []))
                     return f"{product} is a {info['category']} by {vendor_info}. {info['description']}"
+                # Check aliases
+                for alias in info.get('aliases', []):
+                    if alias.lower() in query_lower or query_lower in alias.lower():
+                        vendor_info = info.get('vendor') or ', '.join(info.get('vendors', []))
+                        return f"{product} (also known as {alias}) is a {info['category']} by {vendor_info}. {info['description']}"
         
-        return f"No information found about '{search_terms}' in documents."
+        return f"No information found about '{query}' in documents."
     
     # If user asked about a specific document/product, prioritize exact matches
     query_lower = query.lower()
