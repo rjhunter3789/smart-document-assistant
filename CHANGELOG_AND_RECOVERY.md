@@ -4,6 +4,29 @@
 
 > **Note:** Full code snapshots are preserved in Git history. This changelog contains only version summaries and key features for easier reading.
 
+### Version 4.2.1 - iOS Shortcut Fix & Greeting (2025-07-29)
+
+**Fixed iOS Shortcuts & Added Personal Greeting**
+
+**Major Fixes:**
+- Reverted voice endpoint to simple working version (removed complex parsing)
+- Fixed iOS Shortcuts "Tell me about" issue by simplifying query handling
+- Desktop search still has advanced parsing while iOS uses direct pass-through
+
+**New Features:**
+- Added personal greeting to iOS Shortcut: "Hey Jeff, what are we working on today?"
+- Corrected shortcut configuration with proper URL building using Text + Dictated Text
+
+**iOS Shortcut Configuration:**
+1. Speak Text - Personal greeting
+2. Dictate Text
+3. Text - Base URL ending with "user=jeff&q="
+4. URL - Combines Text + Dictated Text
+5. Get Contents of URL - Uses combined URL
+6. Show Contents of URL in Quick Look
+7. Get Text from Contents of URL
+8. Speak Text
+
 ### Version 4.2.0 - Personal AI Profiles (2025-07-28)
 
 **Personalized AI Context System**
@@ -220,5 +243,5 @@ git revert HEAD
 
 ---
 
-Last Updated: 2025-07-28
+Last Updated: 2025-07-29
 Maintained by: Jeff Hunter (rjhunter3789)
