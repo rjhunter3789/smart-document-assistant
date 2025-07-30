@@ -4,6 +4,31 @@
 
 > **Note:** Full code snapshots are preserved in Git history. This changelog contains only version summaries and key features for easier reading.
 
+### Version 4.2.2 - Hands-Free GO Trigger & Folder Fix (2025-07-29)
+
+**Added Hands-Free Operation with GO Command**
+
+**Major Features:**
+- Added hands-free "GO" trigger to iOS Shortcuts
+- Say "Target Retail GO" or "Tell me about Impel GO" to auto-submit
+- Dictation set to "After Pause" for automatic processing
+- Replace action removes "go" from query before sending
+
+**Fixes:**
+- Fixed Jeff's Google Drive folder ID to correct folder
+- Added product knowledge fallback without complex parsing
+- Corrected search to look in actual document folder
+
+**iOS Shortcut GO Configuration:**
+1. Speak greeting
+2. Dictate Text (Stop Listening: After Pause)
+3. If (Dictated Text contains "go")
+4. Replace "go" with empty string
+5. Text (base URL)
+6. Get Contents of URL (using replaced text)
+7-9. Process and speak response
+10. Otherwise → Stop (Do Nothing)
+
 ### Version 4.2.1 - iOS Shortcut Fix & Greeting (2025-07-29)
 
 **Fixed iOS Shortcuts & Added Personal Greeting**
